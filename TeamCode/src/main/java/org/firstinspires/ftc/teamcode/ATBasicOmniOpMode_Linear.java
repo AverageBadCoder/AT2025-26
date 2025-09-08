@@ -75,6 +75,7 @@ public class ATBasicOmniOpMode_Linear extends LinearOpMode {
     private DcMotor bL = null;
     private DcMotor fR = null;
     private DcMotor bR = null;
+    private DcMotor flywheel1 = null;
 
     @Override
     public void runOpMode() {
@@ -85,6 +86,7 @@ public class ATBasicOmniOpMode_Linear extends LinearOpMode {
         bL = hardwareMap.get(DcMotor.class, "backLeft");
         fR = hardwareMap.get(DcMotor.class, "frontRight");
         bR = hardwareMap.get(DcMotor.class, "backRight");
+        flywheel1 = hardwareMap.get(DcMotor.class, "flywheel1");
 
         // ########################################################################################
         // !!!            IMPORTANT Drive Information. Test your motor directions.            !!!!!
@@ -97,9 +99,18 @@ public class ATBasicOmniOpMode_Linear extends LinearOpMode {
         // Reverse the direction (flip FORWARD <-> REVERSE ) of any wheel that runs backward
         // Keep testing until ALL the wheels move the robot forward when you push the left joystick forward.
         fL.setDirection(DcMotor.Direction.REVERSE);
+        fL.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+
         bL.setDirection(DcMotor.Direction.REVERSE);
+        bL.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+
         fR.setDirection(DcMotor.Direction.FORWARD);
+        fR.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+
         bR.setDirection(DcMotor.Direction.FORWARD);
+        bR.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+
+        flywheel1.setDirection(DcMotor.Direction.FORWARD);
 
         // Wait for the game to start (driver presses START)
         telemetry.addData("Status", "Initialized");
