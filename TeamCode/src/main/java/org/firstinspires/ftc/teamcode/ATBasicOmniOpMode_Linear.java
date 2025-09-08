@@ -125,6 +125,22 @@ public class ATBasicOmniOpMode_Linear extends LinearOpMode {
 
         // run until the end of the match (driver presses STOP)
         while (opModeIsActive()) {
+
+            if (gamepad2.a){
+                flywheel1.setPower(.95);
+            }
+            else{
+                //idle speed
+                flywheel1.setPower(.5);
+            }
+
+            if (gamepad2.x){
+                intake1.setPower(.95);
+            }
+            else{
+                intake1.setPower(0);
+            }
+
             double max;
 
             // POV Mode uses left joystick to go forward & strafe, and right joystick to rotate.
