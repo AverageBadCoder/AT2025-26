@@ -34,6 +34,7 @@ import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import static org.firstinspires.ftc.teamcode.CONSTANTS.*;
 import com.qualcomm.robotcore.hardware.DcMotor;
+import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.util.ElapsedTime;
 
 /*
@@ -70,20 +71,20 @@ public class ATBasicOmniOpMode_Linear extends LinearOpMode {
 
     // Declare OpMode members for each of the 4 motors.
     private ElapsedTime runtime = new ElapsedTime();
-    private DcMotor frontLeftDrive = null;
-    private DcMotor backLeftDrive = null;
-    private DcMotor frontRightDrive = null;
-    private DcMotor backRightDrive = null;
+    private DcMotor fL = null;
+    private DcMotor bL = null;
+    private DcMotor fR = null;
+    private DcMotor bR = null;
 
     @Override
     public void runOpMode() {
 
         // Initialize the hardware variables. Note that the strings used here must correspond
         // to the names assigned during the robot configuration step on the DS or RC devices.
-        frontLeftDrive = hardwareMap.get(DcMotor.class, "front_left_drive");
-        backLeftDrive = hardwareMap.get(DcMotor.class, "back_left_drive");
-        frontRightDrive = hardwareMap.get(DcMotor.class, "front_right_drive");
-        backRightDrive = hardwareMap.get(DcMotor.class, "back_right_drive");
+        fL = hardwareMap.get(DcMotor.class, "frontLeft");
+        bL = hardwareMap.get(DcMotor.class, "backLeft");
+        fR = hardwareMap.get(DcMotor.class, "frontRight");
+        bR = hardwareMap.get(DcMotor.class, "backRight");
 
         // ########################################################################################
         // !!!            IMPORTANT Drive Information. Test your motor directions.            !!!!!
@@ -95,10 +96,10 @@ public class ATBasicOmniOpMode_Linear extends LinearOpMode {
         // when you first test your robot, push the left joystick forward and observe the direction the wheels turn.
         // Reverse the direction (flip FORWARD <-> REVERSE ) of any wheel that runs backward
         // Keep testing until ALL the wheels move the robot forward when you push the left joystick forward.
-        frontLeftDrive.setDirection(DcMotor.Direction.REVERSE);
-        backLeftDrive.setDirection(DcMotor.Direction.REVERSE);
-        frontRightDrive.setDirection(DcMotor.Direction.FORWARD);
-        backRightDrive.setDirection(DcMotor.Direction.FORWARD);
+        fL.setDirection(DcMotor.Direction.REVERSE);
+        bL.setDirection(DcMotor.Direction.REVERSE);
+        fR.setDirection(DcMotor.Direction.FORWARD);
+        bR.setDirection(DcMotor.Direction.FORWARD);
 
         // Wait for the game to start (driver presses START)
         telemetry.addData("Status", "Initialized");
@@ -154,10 +155,10 @@ public class ATBasicOmniOpMode_Linear extends LinearOpMode {
             */
 
             // Send calculated power to wheels
-            frontLeftDrive.setPower(frontLeftPower);
-            frontRightDrive.setPower(frontRightPower);
-            backLeftDrive.setPower(backLeftPower);
-            backRightDrive.setPower(backRightPower);
+            fL.setPower(frontLeftPower);
+            fR.setPower(frontRightPower);
+            bL.setPower(backLeftPower);
+            bR.setPower(backRightPower);
 
             // Show the elapsed game time and wheel power.
             telemetry.addData("Status", "Run Time: " + runtime.toString());
