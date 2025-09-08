@@ -76,6 +76,7 @@ public class ATBasicOmniOpMode_Linear extends LinearOpMode {
     private DcMotor fR = null;
     private DcMotor bR = null;
     private DcMotor flywheel1 = null;
+    private DcMotor intake1 = null;
 
     @Override
     public void runOpMode() {
@@ -87,6 +88,7 @@ public class ATBasicOmniOpMode_Linear extends LinearOpMode {
         fR = hardwareMap.get(DcMotor.class, "frontRight");
         bR = hardwareMap.get(DcMotor.class, "backRight");
         flywheel1 = hardwareMap.get(DcMotor.class, "flywheel1");
+        intake1 = hardwareMap.get(DcMotor.class, "intake1");
 
         // ########################################################################################
         // !!!            IMPORTANT Drive Information. Test your motor directions.            !!!!!
@@ -111,6 +113,8 @@ public class ATBasicOmniOpMode_Linear extends LinearOpMode {
         bR.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
 
         flywheel1.setDirection(DcMotor.Direction.FORWARD);
+
+        intake1.setDirection(DcMotor.Direction.FORWARD);
 
         // Wait for the game to start (driver presses START)
         telemetry.addData("Status", "Initialized");
