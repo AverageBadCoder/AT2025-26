@@ -100,16 +100,16 @@ public class ATBasicOmniOpMode_Linear extends LinearOpMode {
         // when you first test your robot, push the left joystick forward and observe the direction the wheels turn.
         // Reverse the direction (flip FORWARD <-> REVERSE ) of any wheel that runs backward
         // Keep testing until ALL the wheels move the robot forward when you push the left joystick forward.
-        fL.setDirection(DcMotor.Direction.REVERSE);
+        fL.setDirection(DcMotor.Direction.FORWARD);
         fL.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
 
-        bL.setDirection(DcMotor.Direction.REVERSE);
+        bL.setDirection(DcMotor.Direction.FORWARD);
         bL.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
 
-        fR.setDirection(DcMotor.Direction.FORWARD);
+        fR.setDirection(DcMotor.Direction.REVERSE);
         fR.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
 
-        bR.setDirection(DcMotor.Direction.FORWARD);
+        bR.setDirection(DcMotor.Direction.REVERSE);
         bR.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
 
         flywheel1.setDirection(DcMotor.Direction.FORWARD);
@@ -195,7 +195,7 @@ public class ATBasicOmniOpMode_Linear extends LinearOpMode {
             telemetry.addData("Status", "Run Time: " + runtime.toString());
             telemetry.addData("Front left/Right", "%4.2f, %4.2f", frontLeftPower, frontRightPower);
             telemetry.addData("Back  left/Right", "%4.2f, %4.2f", backLeftPower, backRightPower);
-            telemetry.addData("AT is #1", 4174);
+            telemetry.addData("AT is #1!", 4174);
             telemetry.update();
         }
     }}
