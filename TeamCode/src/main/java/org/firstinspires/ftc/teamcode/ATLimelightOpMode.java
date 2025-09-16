@@ -36,6 +36,16 @@ import static org.firstinspires.ftc.teamcode.CONSTANTS.*;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.util.ElapsedTime;
+import com.qualcomm.hardware.limelightvision.LLResult;
+import com.qualcomm.hardware.limelightvision.LLResultTypes;
+import com.qualcomm.hardware.limelightvision.LLStatus;
+import com.qualcomm.hardware.limelightvision.Limelight3A;
+import com.qualcomm.robotcore.eventloop.opmode.Disabled;
+import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
+import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
+import org.firstinspires.ftc.robotcore.external.navigation.Pose3D;
+
+import java.util.List;
 
 /*
  * This file contains an example of a Linear "OpMode".
@@ -65,9 +75,9 @@ import com.qualcomm.robotcore.util.ElapsedTime;
  * Remove or comment out the @Disabled line to add this OpMode to the Driver Station OpMode list
  */
 
-@TeleOp(name="AT TeleOp", group="Linear OpMode")
+@TeleOp(name="Limelight TeleOp", group="Linear OpMode")
 @Disabled
-public class ATBasicOmniOpMode_Linear extends LinearOpMode {
+public class ATLimelightOpMode extends LinearOpMode {
 
     // Declare OpMode members for each of the 4 motors.
     private ElapsedTime runtime = new ElapsedTime();
@@ -77,6 +87,8 @@ public class ATBasicOmniOpMode_Linear extends LinearOpMode {
     private DcMotor bR = null;
     private DcMotor flywheel1 = null;
     private DcMotor intake1 = null;
+
+    private Limelight3A limelight;
 
     @Override
     public void runOpMode() {
@@ -89,6 +101,9 @@ public class ATBasicOmniOpMode_Linear extends LinearOpMode {
         bR = hardwareMap.get(DcMotor.class, "bR");
         flywheel1 = hardwareMap.get(DcMotor.class, "flywheel1");
         intake1 = hardwareMap.get(DcMotor.class, "intake1");
+        limelight = hardwareMap.get(Limelight3A.class, "limelight");
+        limelight.pipelineSwitch(0);
+
 
         // ########################################################################################
         // !!!            IMPORTANT Drive Information. Test your motor directions.            !!!!!
@@ -117,14 +132,55 @@ public class ATBasicOmniOpMode_Linear extends LinearOpMode {
         intake1.setDirection(DcMotor.Direction.FORWARD);
 
         // Wait for the game to start (driver presses START)
+        limelight.start();
         telemetry.addData("Status", "Initialized");
         telemetry.update();
+
+        LLStatus status = limelight.getStatus();
+        LLResult result = limelight.getLatestResult();
+        waitForStart();
 
         waitForStart();
         runtime.reset();
 
         // run until the end of the match (driver presses STOP)
         while (opModeIsActive()) {
+
+            status = limelight.getStatus();
+            telemetry.addData("Name", "%s",
+                    status.getName());
+            telemetry.addData("LL", "Temp: %.1fC, CPU: %.1f%%, FPS: %d",
+                    status.getTemp(), status.getCpu(), (int) status.getFps());
+            telemetry.addData("Pipeline", "Index: %d, Type: %s",
+                    status.getPipelineIndex(), status.getPipelineType());
+            telemetry.update();
+
+            result = limelight.getLatestResult();
+            if (result != null) {
+                // Access general information
+                Pose3D botpose = result.getBotpose();
+                double captureLatency = result.getCaptureLatency();
+                double targetingLatency = result.getTargetingLatency();
+                double parseLatency = result.getParseLatency();
+                telemetry.addData("LL Latency", captureLatency + targetingLatency);
+                telemetry.addData("Parse Latency", parseLatency);
+                telemetry.addData("Botpose", botpose);
+
+                if (result.isValid()) {
+                    telemetry.addData("tx", result.getTx());
+                    telemetry.addData("txnc", result.getTxNC());
+                    telemetry.addData("ty", result.getTy());
+                    telemetry.addData("tync", result.getTyNC());
+
+                    // Access color results
+                    List<LLResultTypes.ColorResult> colorResults = result.getColorResults();
+                    for (LLResultTypes.ColorResult cr : colorResults) {
+                        telemetry.addData("Color", "X: %.2f, Y: %.2f", cr.getTargetXDegrees(), cr.getTargetYDegrees());
+                    }
+                }
+            }
+            sleep(200);
+        }
 
             if (gamepad2.a){
                 flywheel1.setPower(.95);
