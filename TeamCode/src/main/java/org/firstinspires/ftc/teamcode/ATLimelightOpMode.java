@@ -76,7 +76,7 @@ import java.util.List;
  */
 
 @TeleOp(name="Limelight TeleOp", group="Linear OpMode")
-@Disabled
+//@Disabled
 public class ATLimelightOpMode extends LinearOpMode {
 
     // Declare OpMode members for each of the 4 motors.
@@ -99,10 +99,10 @@ public class ATLimelightOpMode extends LinearOpMode {
         bL = hardwareMap.get(DcMotor.class, "bL");
         fR = hardwareMap.get(DcMotor.class, "fR");
         bR = hardwareMap.get(DcMotor.class, "bR");
-        flywheel1 = hardwareMap.get(DcMotor.class, "flywheel1");
-        intake1 = hardwareMap.get(DcMotor.class, "intake1");
+//        flywheel1 = hardwareMap.get(DcMotor.class, "flywheel1");
+//        intake1 = hardwareMap.get(DcMotor.class, "intake1");
         limelight = hardwareMap.get(Limelight3A.class, "limelight");
-        limelight.pipelineSwitch(0);
+        limelight.pipelineSwitch(2);
 
 
         // ########################################################################################
@@ -127,9 +127,9 @@ public class ATLimelightOpMode extends LinearOpMode {
         bR.setDirection(DcMotor.Direction.REVERSE);
         bR.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
 
-        flywheel1.setDirection(DcMotor.Direction.FORWARD);
-
-        intake1.setDirection(DcMotor.Direction.FORWARD);
+//        flywheel1.setDirection(DcMotor.Direction.FORWARD);
+//
+//        intake1.setDirection(DcMotor.Direction.FORWARD);
 
         // Wait for the game to start (driver presses START)
         limelight.start();
@@ -153,7 +153,6 @@ public class ATLimelightOpMode extends LinearOpMode {
                     status.getTemp(), status.getCpu(), (int) status.getFps());
             telemetry.addData("Pipeline", "Index: %d, Type: %s",
                     status.getPipelineIndex(), status.getPipelineType());
-            telemetry.update();
 
             result = limelight.getLatestResult();
             if (result != null) {
@@ -164,7 +163,9 @@ public class ATLimelightOpMode extends LinearOpMode {
                 double parseLatency = result.getParseLatency();
                 telemetry.addData("LL Latency", captureLatency + targetingLatency);
                 telemetry.addData("Parse Latency", parseLatency);
-                telemetry.addData("Botpose", botpose);
+                telemetry.addData("Botpose", botpose.toString());
+                telemetry.addData("tx", result.getTx());
+                telemetry.addData("ty", result.getTy());
 
                 if (result.isValid()) {
                     telemetry.addData("tx", result.getTx());
@@ -179,6 +180,8 @@ public class ATLimelightOpMode extends LinearOpMode {
                     }
                 }
             }
+
+            telemetry.update();
             sleep(200);
         }
 
@@ -254,4 +257,4 @@ public class ATLimelightOpMode extends LinearOpMode {
             telemetry.addData("AT is #1!", 4174);
             telemetry.update();
         }
-    }}
+    }
