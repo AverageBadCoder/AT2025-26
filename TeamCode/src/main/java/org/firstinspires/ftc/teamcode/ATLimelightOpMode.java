@@ -86,6 +86,7 @@ public class ATLimelightOpMode extends LinearOpMode {
     private DcMotor fR = null;
     private DcMotor bR = null;
     private DcMotor flywheel1 = null;
+    private DcMotor flywheel2 = null;
     private DcMotor intake1 = null;
 
     private Limelight3A limelight;
