@@ -34,6 +34,7 @@ import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import static org.firstinspires.ftc.teamcode.CONSTANTS.*;
 import com.qualcomm.robotcore.hardware.DcMotor;
+import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.util.ElapsedTime;
 import com.qualcomm.hardware.limelightvision.LLResult;
@@ -85,8 +86,17 @@ public class ATLimelightOpMode extends LinearOpMode {
     private DcMotor bL = null;
     private DcMotor fR = null;
     private DcMotor bR = null;
-    private DcMotor flywheel1 = null;
-    private DcMotor flywheel2 = null;
+
+    /*
+    DcMotorEx myMotor = hardwareMap.get(DcMotorEx.class, "myMotor");
+    myMotor.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+    myMotor.setVelocity(speed);
+
+    where speed = (target ticks/second) * motor CPR
+    CPR is counts per revolution of the encoder
+     */
+    private DcMotorEx flywheel1 = null;
+    private DcMotorEx flywheel2 = null;
     private DcMotor intake1 = null;
 
     private Limelight3A limelight;
