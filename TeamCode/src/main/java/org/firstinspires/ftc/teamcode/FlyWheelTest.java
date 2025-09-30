@@ -95,7 +95,7 @@ public class FlyWheelTest extends LinearOpMode {
         fwr.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
 
         fwl.setDirection(DcMotor.Direction.FORWARD);
-        fwr.setDirection(DcMotor.Direction.FORWARD);
+        fwr.setDirection(DcMotor.Direction.REVERSE);
 
         telemetry.addData("Status", "Initialized");
         telemetry.update();
@@ -115,16 +115,9 @@ public class FlyWheelTest extends LinearOpMode {
                 fwlSpeed = Math.max(fwlSpeed - step, 0);
             }
 
-            // Adjust right flywheel speed
-            if (gamepad1.right_stick_y < -0.5) {  // push up
-                fwrSpeed = Math.min(fwrSpeed + step, maxVelocity);
-            } else if (gamepad1.right_stick_y > 0.5) {  // push down
-                fwrSpeed = Math.max(fwrSpeed - step, 0);
-            }
-
             // Apply velocities
             fwl.setVelocity(fwlSpeed);
-            fwr.setVelocity(fwrSpeed);
+            fwr.setVelocity(fwlSpeed);
 
             // Telemetry
             telemetry.addData("Status", "Run Time: " + runtime.toString());
