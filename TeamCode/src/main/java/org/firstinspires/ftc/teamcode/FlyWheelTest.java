@@ -115,14 +115,23 @@ public class FlyWheelTest extends LinearOpMode {
                 fwlSpeed = Math.max(fwlSpeed - step, 0);
             }
 
+            // Adjust right flywheel speed
+            if (gamepad1.right_stick_y < -0.5) {  // push up
+                fwrSpeed = Math.min(fwrSpeed + step, maxVelocity);
+            } else if (gamepad1.right_stick_y > 0.5) {  // push down
+                fwrSpeed = Math.max(fwrSpeed - step, 0);
+            }
+
             // Apply velocities
             fwl.setVelocity(fwlSpeed);
-            fwr.setVelocity(fwlSpeed);
+            fwr.setVelocity(fwrSpeed);
 
             // Telemetry
             telemetry.addData("Status", "Run Time: " + runtime.toString());
             telemetry.addData("Flywheel Left Speed", "%.2f ticks/sec", fwlSpeed);
             telemetry.addData("Flywheel Right Speed", "%.2f ticks/sec", fwrSpeed);
+            telemetry.addData("Flywheel Left (actual)", "%.2f ticks/sec", fwl.getVelocity());
+            telemetry.addData("Flywheel Right (actual)", "%.2f ticks/sec", fwr.getVelocity());
             telemetry.update();
 
             sleep(150); // prevent huge jumps by slowing adjustment rate
