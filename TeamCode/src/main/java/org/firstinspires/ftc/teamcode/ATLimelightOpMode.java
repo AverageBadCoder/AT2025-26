@@ -113,7 +113,7 @@ public class ATLimelightOpMode extends LinearOpMode {
 //        flywheel1 = hardwareMap.get(DcMotor.class, "flywheel1");
 //        intake1 = hardwareMap.get(DcMotor.class, "intake1");
         limelight = hardwareMap.get(Limelight3A.class, "limelight");
-        limelight.pipelineSwitch(2);
+        limelight.pipelineSwitch(1);
 
 
         // ########################################################################################
@@ -166,44 +166,35 @@ public class ATLimelightOpMode extends LinearOpMode {
                     status.getPipelineIndex(), status.getPipelineType());
 
             result = limelight.getLatestResult();
-            if (result != null) {
-                // Access general information
+            if (result != null && result.isValid()) {
                 Pose3D botpose = result.getBotpose();
-                double captureLatency = result.getCaptureLatency();
-                double targetingLatency = result.getTargetingLatency();
-                double parseLatency = result.getParseLatency();
-                telemetry.addData("LL Latency", captureLatency + targetingLatency);
-                telemetry.addData("Parse Latency", parseLatency);
-                telemetry.addData("Botpose", botpose.toString());
-                telemetry.addData("tx", result.getTx());
-                telemetry.addData("ty", result.getTy());
 
-                if (result.isValid()) {
-                    telemetry.addData("tx", result.getTx());
-                    telemetry.addData("txnc", result.getTxNC());
-                    telemetry.addData("ty", result.getTy());
-                    telemetry.addData("tync", result.getTyNC());
-                }
+                double x = botpose.getPosition().x; // in meters
+                double y = botpose.getPosition().y; // in meters
+                double yaw = botpose.getOrientation().getYaw(); // in radians
+
+                telemetry.addData("Robot X (m)", x);
+                telemetry.addData("Robot Y (m)", y);
+                telemetry.addData("Robot Yaw (deg)", Math.toDegrees(yaw));
+            } else {
+                telemetry.addLine("no result");
             }
-
-            telemetry.update();
             sleep(200);
-        }
 
-            if (gamepad2.a){
-                flywheel1.setPower(.95);
-            }
-            else{
-                //idle speed
-                flywheel1.setPower(.5);
-            }
-
-            if (gamepad2.x){
-                intake1.setPower(.95);
-            }
-            else{
-                intake1.setPower(0);
-            }
+//            if (gamepad2.a){
+//                flywheel1.setPower(.95);
+//            }
+//            else{
+//                //idle speed
+//                flywheel1.setPower(.5);
+//            }
+//
+//            if (gamepad2.x){
+//                intake1.setPower(.95);
+//            }
+//            else{
+//                intake1.setPower(0);
+//            }
 
             double max;
 
@@ -261,5 +252,6 @@ public class ATLimelightOpMode extends LinearOpMode {
             telemetry.addData("Back  left/Right", "%4.2f, %4.2f", backLeftPower, backRightPower);
             telemetry.addData("AT is #1!", 4174);
             telemetry.update();
+        }
         }
     }
