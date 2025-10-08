@@ -1,28 +1,64 @@
+/* Copyright (c) 2021 FIRST. All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without modification,
+ * are permitted (subject to the limitations in the disclaimer below) provided that
+ * the following conditions are met:
+ *
+ * Redistributions of source code must retain the above copyright notice, this list
+ * of conditions and the following disclaimer.
+ *
+ * Redistributions in binary form must reproduce the above copyright notice, this
+ * list of conditions and the following disclaimer in the documentation and/or
+ * other materials provided with the distribution.
+ *
+ * Neither the name of FIRST nor the names of its contributors may be used to endorse or
+ * promote products derived from this software without specific prior written permission.
+ *
+ * NO EXPRESS OR IMPLIED LICENSES TO ANY PARTY'S PATENT RIGHTS ARE GRANTED BY THIS
+ * LICENSE. THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
+ * THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+ * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+ * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+
 package org.firstinspires.ftc.teamcode;
 
+import com.qualcomm.robotcore.eventloop.opmode.Disabled;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
+import static org.firstinspires.ftc.teamcode.CONSTANTS.*;
 import com.qualcomm.robotcore.hardware.DcMotor;
-import com.qualcomm.hardware.limelightvision.Limelight3A;
+import com.qualcomm.robotcore.hardware.DcMotorEx;
+import com.qualcomm.robotcore.hardware.DcMotorSimple;
+import com.qualcomm.robotcore.util.ElapsedTime;
 import com.qualcomm.hardware.limelightvision.LLResult;
+import com.qualcomm.hardware.limelightvision.LLResultTypes;
+import com.qualcomm.hardware.limelightvision.LLStatus;
+import com.qualcomm.hardware.limelightvision.Limelight3A;
+import com.qualcomm.robotcore.eventloop.opmode.Disabled;
+import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
+import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import org.firstinspires.ftc.robotcore.external.navigation.Pose3D;
 
-@TeleOp(name="Limelight Auto-Strafe", group="Linear OpMode")
+@TeleOp(name="Limelight AutoMove", group="Linear OpMode")
 public class ATLimelightBotPose extends LinearOpMode {
 
-    private DcMotor fL, fR, bL, bR;
+    private ElapsedTime runtime = new ElapsedTime();
+    private DcMotor fL = null;
+    private DcMotor bL = null;
+    private DcMotor fR = null;
+    private DcMotor bR = null;
+
     private Limelight3A limelight;
-
-    // proportional control coefficient (tune as needed)
-    private final double kP = 0.7;
-
-    // target position (meters, relative to field)
-    private final double targetX = 1.2; // forward distance
-    private final double targetY = -0.5; // strafe left = negative, right = positive
 
     @Override
     public void runOpMode() {
-
         fL = hardwareMap.get(DcMotor.class, "fL");
         bL = hardwareMap.get(DcMotor.class, "bL");
         fR = hardwareMap.get(DcMotor.class, "fR");
@@ -38,77 +74,103 @@ public class ATLimelightBotPose extends LinearOpMode {
             m.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
         }
 
-        limelight.pipelineSwitch(2);
         limelight.start();
-
-        telemetry.addLine("Initialized. Waiting for start...");
+        telemetry.addData("Status", "Initialized");
         telemetry.update();
 
         waitForStart();
+        runtime.reset();
 
         while (opModeIsActive()) {
             LLResult result = limelight.getLatestResult();
-            if (result == null || result.getBotpose() == null) {
-                telemetry.addLine("No valid Limelight pose!");
-                telemetry.update();
-                continue;
+            double x = 0, y = 0, yaw = 0;
+
+            if (result != null && result.isValid()) {
+                Pose3D botpose = result.getBotpose();
+                x = botpose.getPosition().x;
+                y = botpose.getPosition().y;
+                yaw = botpose.getOrientation().getYaw();
+                telemetry.addData("X (m)", x);
+                telemetry.addData("Y (m)", y);
+                telemetry.addData("Yaw (deg)", Math.toDegrees(yaw));
+            } else {
+                telemetry.addLine("No Limelight pose");
             }
 
-            Pose3D botpose = result.getBotpose();
+            double axial   = gamepad1.left_stick_y;
+            double lateral =  -gamepad1.left_stick_x;
+            double rotation = gamepad1.right_stick_x;
 
-            double robotX = botpose.getPosition().x;
-            double robotY = botpose.getPosition().y;
-
-            double errorX = targetX - robotX; // forward/backward
-            double errorY = targetY - robotY; // strafe
-
-            // stop condition (within 5 cm tolerance)
-            if (Math.abs(errorX) < 0.05 && Math.abs(errorY) < 0.05) {
-                stopAllMotors();
-                telemetry.addLine("Reached target!");
-                telemetry.update();
-                break;
+            if (gamepad1.a && result != null && result.isValid()) {
+                driveToOrigin(x, y);
+            } else {
+                driveMecanum(axial, lateral, rotation);
             }
 
-            // proportional movement toward target
-            double axial = kP * errorX;    // forward/backward power
-            double lateral = kP * errorY;  // strafe power
-            double yaw = 0;                // no rotation
+            telemetry.update();
+        }
+    }
 
-            // mecanum drive math
-            double frontLeftPower  = axial + lateral + yaw;
-            double frontRightPower = axial - lateral - yaw;
-            double backLeftPower   = axial - lateral + yaw;
-            double backRightPower  = axial + lateral - yaw;
+    private void driveToOrigin(double x, double y) {
+        // Simple proportional control to move toward (0,0)
+        double kP = 0.8;  // Tune this value (0.5–1.0 works well)
+        double tolerance = 0.1; // meters from origin
 
-            // normalize powers
-            double max = Math.max(Math.max(Math.abs(frontLeftPower), Math.abs(frontRightPower)),
-                    Math.max(Math.abs(backLeftPower), Math.abs(backRightPower)));
-            if (max > 1.0) {
-                frontLeftPower /= max;
-                frontRightPower /= max;
-                backLeftPower /= max;
-                backRightPower /= max;
-            }
+        double distance = Math.sqrt(x*x + y*y);
+        double targetLateral = -y * kP;
+        double targetAxial = x * kP;
 
+        // Normalize motor powers
+        double frontLeftPower  = targetAxial + targetLateral;
+        double frontRightPower = targetAxial - targetLateral;
+        double backLeftPower   = targetAxial - targetLateral;
+        double backRightPower  = targetAxial + targetLateral;
+        telemetry.addData("target lateral", targetLateral);
+        telemetry.addData("target axial", targetAxial);
+
+        double max = Math.max(Math.abs(frontLeftPower), Math.abs(frontRightPower));
+        max = Math.max(max, Math.abs(backLeftPower));
+        max = Math.max(max, Math.abs(backRightPower));
+        if (max > 1.0) {
+            frontLeftPower  /= max;
+            frontRightPower /= max;
+            backLeftPower   /= max;
+            backRightPower  /= max;
+        }
+
+        if (distance > tolerance) {
             fL.setPower(frontLeftPower);
             fR.setPower(frontRightPower);
             bL.setPower(backLeftPower);
             bR.setPower(backRightPower);
-
-            telemetry.addData("Target", "(%.2f, %.2f)", targetX, targetY);
-            telemetry.addData("Current", "(%.2f, %.2f)", robotX, robotY);
-            telemetry.addData("Error", "(%.2f, %.2f)", errorX, errorY);
-            telemetry.update();
+        } else {
+            // Stop when near origin
+            fL.setPower(0);
+            fR.setPower(0);
+            bL.setPower(0);
+            bR.setPower(0);
         }
-
-        stopAllMotors();
     }
 
-    private void stopAllMotors() {
-        fL.setPower(0);
-        fR.setPower(0);
-        bL.setPower(0);
-        bR.setPower(0);
+    private void driveMecanum(double axial, double lateral, double yaw) {
+        double frontLeftPower  = axial + lateral + yaw;
+        double frontRightPower = axial - lateral - yaw;
+        double backLeftPower   = axial - lateral + yaw;
+        double backRightPower  = axial + lateral - yaw;
+
+        double max = Math.max(Math.abs(frontLeftPower), Math.abs(frontRightPower));
+        max = Math.max(max, Math.abs(backLeftPower));
+        max = Math.max(max, Math.abs(backRightPower));
+        if (max > 1.0) {
+            frontLeftPower  /= max;
+            frontRightPower /= max;
+            backLeftPower   /= max;
+            backRightPower  /= max;
+        }
+
+        fL.setPower(frontLeftPower);
+        fR.setPower(frontRightPower);
+        bL.setPower(backLeftPower);
+        bR.setPower(backRightPower);
     }
 }
