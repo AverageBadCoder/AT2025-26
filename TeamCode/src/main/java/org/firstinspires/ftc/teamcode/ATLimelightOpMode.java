@@ -36,6 +36,7 @@ import static org.firstinspires.ftc.teamcode.CONSTANTS.*;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
+import com.qualcomm.robotcore.hardware.Servo;
 import com.qualcomm.robotcore.util.ElapsedTime;
 import com.qualcomm.hardware.limelightvision.LLResult;
 import com.qualcomm.hardware.limelightvision.LLResultTypes;
@@ -86,6 +87,10 @@ public class ATLimelightOpMode extends LinearOpMode {
     private DcMotor bL = null;
     private DcMotor fR = null;
     private DcMotor bR = null;
+    private DcMotorEx fwl = null;
+    private DcMotorEx fwr = null;
+    private DcMotor intake1 = null;
+    private Servo sorting1 = null;
 
     /*
     DcMotorEx myMotor = hardwareMap.get(DcMotorEx.class, "myMotor");
@@ -95,9 +100,9 @@ public class ATLimelightOpMode extends LinearOpMode {
     where speed = (target ticks/second) * motor CPR
     CPR is counts per revolution of the encoder
      */
-    private DcMotorEx flywheel1 = null;
-    private DcMotorEx flywheel2 = null;
-    private DcMotor intake1 = null;
+
+
+
 
     private Limelight3A limelight;
 
@@ -110,8 +115,10 @@ public class ATLimelightOpMode extends LinearOpMode {
         bL = hardwareMap.get(DcMotor.class, "bL");
         fR = hardwareMap.get(DcMotor.class, "fR");
         bR = hardwareMap.get(DcMotor.class, "bR");
-//        flywheel1 = hardwareMap.get(DcMotor.class, "flywheel1");
+//        fwl = hardwareMap.get(DcMotor.class, "fwl");
+//        fwr = hardwareMap.get(DcMotor.class, "fwr");
 //        intake1 = hardwareMap.get(DcMotor.class, "intake1");
+//        sorting1 = hardwareMap.get(Servo.class, "sorting1");
         limelight = hardwareMap.get(Limelight3A.class, "limelight");
         limelight.pipelineSwitch(1);
 
@@ -138,8 +145,12 @@ public class ATLimelightOpMode extends LinearOpMode {
         bR.setDirection(DcMotor.Direction.REVERSE);
         bR.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
 
-//        flywheel1.setDirection(DcMotor.Direction.FORWARD);
-//
+        fwl.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+        fwr.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+
+        fwl.setDirection(DcMotor.Direction.FORWARD);
+        fwr.setDirection(DcMotor.Direction.REVERSE);
+
 //        intake1.setDirection(DcMotor.Direction.FORWARD);
 
         // Wait for the game to start (driver presses START)
@@ -181,20 +192,36 @@ public class ATLimelightOpMode extends LinearOpMode {
             }
             sleep(200);
 
-//            if (gamepad2.a){
-//                flywheel1.setPower(.95);
-//            }
-//            else{
-//                //idle speed
-//                flywheel1.setPower(.5);
-//            }
-//
-//            if (gamepad2.x){
-//                intake1.setPower(.95);
-//            }
-//            else{
-//                intake1.setPower(0);
-//            }
+            if (gamepad1.left_trigger > 0.1 && gamepad1.left_trigger < 0.5){ //intake speed forward
+                intake1.setDirection(DcMotor.Direction.FORWARD);
+                intake1.setPower(.5);
+            }
+            else if (gamepad1.left_trigger > 0.5) {
+                intake1.setPower(.9);
+            }
+
+            if (gamepad1.right_trigger > 0.1 && gamepad1.right_trigger < 0.5){ //reverse direction
+                intake1.setDirection(DcMotor.Direction.REVERSE);
+                intake1.setPower(.5);
+            }
+
+            else if (gamepad1.right_trigger > 0.5) {
+                intake1.setPower(.9);
+            }
+
+            else {
+                intake1.setPower(0);
+            }
+
+            if (gamepad1.a){
+                //set fwr and fwl power
+            }
+            if (gamepad1.b){
+                fwr.setPower(0);
+                fwl.setPower(0);
+            }
+
+
 
             double max;
 
@@ -245,12 +272,20 @@ public class ATLimelightOpMode extends LinearOpMode {
             fR.setPower(frontRightPower);
             bL.setPower(backLeftPower);
             bR.setPower(backRightPower);
+            fwl.setVelocity(fwlSpeed);
+            fwr.setVelocity(fwrSpeed);
 
             // Show the elapsed game time and wheel power.
             telemetry.addData("Status", "Run Time: " + runtime.toString());
             telemetry.addData("Front left/Right", "%4.2f, %4.2f", frontLeftPower, frontRightPower);
             telemetry.addData("Back  left/Right", "%4.2f, %4.2f", backLeftPower, backRightPower);
             telemetry.addData("AT is #1!", 4174);
+            telemetry.addData("Status", "Run Time: " + runtime.toString());
+            telemetry.addData("Flywheel Left Speed", "%.2f ticks/sec", fwlSpeed);
+            telemetry.addData("Flywheel Right Speed", "%.2f ticks/sec", fwrSpeed);
+            telemetry.addData("Flywheel Left (actual)", "%.2f ticks/sec", fwl.getVelocity());
+            telemetry.addData("Flywheel Right (actual)", "%.2f ticks/sec", fwr.getVelocity());
+
             telemetry.update();
         }
         }
