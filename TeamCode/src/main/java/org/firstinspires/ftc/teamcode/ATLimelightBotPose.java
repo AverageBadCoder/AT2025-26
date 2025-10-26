@@ -83,16 +83,16 @@ public class ATLimelightBotPose extends LinearOpMode {
 
         while (opModeIsActive()) {
             LLResult result = limelight.getLatestResult();
-            double x = 0, y = 0, yaw = 0;
+            double currX = 0, currY = 0, currYaw = 0;
 
             if (result != null && result.isValid()) {
                 Pose3D botpose = result.getBotpose();
-                x = botpose.getPosition().x;
-                y = botpose.getPosition().y;
-                yaw = botpose.getOrientation().getYaw();
-                telemetry.addData("X (m)", x);
-                telemetry.addData("Y (m)", y);
-                telemetry.addData("Yaw (deg)", Math.toDegrees(yaw));
+                currX = botpose.getPosition().x;
+                currY = botpose.getPosition().y;
+                currYaw = botpose.getOrientation().getYaw();
+                telemetry.addData("X (m)", currX);
+                telemetry.addData("Y (m)", currY);
+                telemetry.addData("Yaw (deg)", Math.toDegrees(currYaw));
             } else {
                 telemetry.addLine("No Limelight pose");
             }
@@ -101,8 +101,9 @@ public class ATLimelightBotPose extends LinearOpMode {
             double lateral =  -gamepad1.left_stick_x;
             double rotation = gamepad1.right_stick_x;
 
+            double targX = 0, targY = 0, targYaw = 0;
             if (gamepad1.a && result != null && result.isValid()) {
-                driveToOrigin(x, y);
+                driveToOrigin(currX, targX, currY, targY, currYaw, targYaw);
             } else {
                 driveMecanum(axial, lateral, rotation);
             }
@@ -111,23 +112,39 @@ public class ATLimelightBotPose extends LinearOpMode {
         }
     }
 
-    private void driveToOrigin(double x, double y) {
-        // Simple proportional control to move toward (0,0)
-        double kP = 0.8;  // Tune this value (0.5–1.0 works well)
-        double tolerance = 0.1; // meters from origin
+    private void driveToOrigin(double currX, double targX, double currY, double targY, double currYaw, double targYaw) {
+        // Tunable gains
+        double kP_drive = 0.8;     // position proportional gain
+        double kP_turn  = 1.0;     // yaw proportional gain (adjust 0.5–1.5)
+        double tolerance = 0.1;    // meters from target
+        double yawTolerance = Math.toRadians(2); // degrees of allowable yaw error
 
-        double distance = Math.sqrt(x*x + y*y);
-        double targetLateral = -y * kP;
-        double targetAxial = x * kP;
+        // --- Compute position error in field coordinates ---
+        double fieldErrorX = targX - currX;
+        double fieldErrorY = targY - currY;
+        double distance = Math.sqrt(fieldErrorX * fieldErrorX + fieldErrorY * fieldErrorY);
 
-        // Normalize motor powers
-        double frontLeftPower  = targetAxial + targetLateral;
-        double frontRightPower = targetAxial - targetLateral;
-        double backLeftPower   = targetAxial - targetLateral;
-        double backRightPower  = targetAxial + targetLateral;
-        telemetry.addData("target lateral", targetLateral);
-        telemetry.addData("target axial", targetAxial);
+        // --- Compute heading error (normalize to [-π, π]) ---
+        double yawError = targYaw - currYaw;
+        yawError = Math.atan2(Math.sin(yawError), Math.cos(yawError));
 
+        // --- Rotate error into robot's frame so motion stays straight ---
+        // This ensures that translation remains in a fixed world direction
+        double robotErrorX =  fieldErrorX * Math.cos(-currYaw) - fieldErrorY * Math.sin(-currYaw);
+        double robotErrorY =  fieldErrorX * Math.sin(-currYaw) + fieldErrorY * Math.cos(-currYaw);
+
+        // --- Proportional control for motion and rotation ---
+        double targetAxial   = robotErrorX * kP_drive;   // forward/back
+        double targetLateral = -robotErrorY * kP_drive;  // strafe
+        double targetYawPower = yawError * kP_turn;      // spin to target yaw
+
+        // --- Combine for mecanum drive ---
+        double frontLeftPower  = targetAxial + targetLateral + targetYawPower;
+        double frontRightPower = targetAxial - targetLateral - targetYawPower;
+        double backLeftPower   = targetAxial - targetLateral + targetYawPower;
+        double backRightPower  = targetAxial + targetLateral - targetYawPower;
+
+        // --- Normalize motor powers ---
         double max = Math.max(Math.abs(frontLeftPower), Math.abs(frontRightPower));
         max = Math.max(max, Math.abs(backLeftPower));
         max = Math.max(max, Math.abs(backRightPower));
@@ -138,19 +155,32 @@ public class ATLimelightBotPose extends LinearOpMode {
             backRightPower  /= max;
         }
 
-        if (distance > tolerance) {
+        // --- Apply power or stop if within tolerance ---
+        if (distance > tolerance || Math.abs(yawError) > yawTolerance) {
             fL.setPower(frontLeftPower);
             fR.setPower(frontRightPower);
             bL.setPower(backLeftPower);
             bR.setPower(backRightPower);
         } else {
-            // Stop when near origin
             fL.setPower(0);
             fR.setPower(0);
             bL.setPower(0);
             bR.setPower(0);
         }
+
+        // --- Telemetry for debugging/tuning ---
+        telemetry.addData("Field Error X", fieldErrorX);
+        telemetry.addData("Field Error Y", fieldErrorY);
+        telemetry.addData("Robot Error X", robotErrorX);
+        telemetry.addData("Robot Error Y", robotErrorY);
+        telemetry.addData("Distance", distance);
+        telemetry.addData("Yaw Error (deg)", Math.toDegrees(yawError));
+        telemetry.addData("Target Axial", targetAxial);
+        telemetry.addData("Target Lateral", targetLateral);
+        telemetry.addData("Target Yaw Power", targetYawPower);
+        telemetry.update();
     }
+
 
     private void driveMecanum(double axial, double lateral, double yaw) {
         double frontLeftPower  = axial + lateral + yaw;
