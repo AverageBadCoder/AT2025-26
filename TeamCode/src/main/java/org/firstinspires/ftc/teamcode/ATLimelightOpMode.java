@@ -115,8 +115,8 @@ public class ATLimelightOpMode extends LinearOpMode {
         bL = hardwareMap.get(DcMotor.class, "bL");
         fR = hardwareMap.get(DcMotor.class, "fR");
         bR = hardwareMap.get(DcMotor.class, "bR");
-//        fwl = hardwareMap.get(DcMotor.class, "fwl");
-//        fwr = hardwareMap.get(DcMotor.class, "fwr");
+        fwl = hardwareMap.get(DcMotorEx.class, "fwl");
+        fwr = hardwareMap.get(DcMotorEx.class, "fwr");
 //        intake1 = hardwareMap.get(DcMotor.class, "intake1");
 //        sorting1 = hardwareMap.get(Servo.class, "sorting1");
         limelight = hardwareMap.get(Limelight3A.class, "limelight");
