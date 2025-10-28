@@ -29,25 +29,18 @@
 
 package org.firstinspires.ftc.teamcode;
 
-import com.qualcomm.robotcore.eventloop.opmode.Disabled;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import static org.firstinspires.ftc.teamcode.CONSTANTS.*;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
-import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.Servo;
 import com.qualcomm.robotcore.util.ElapsedTime;
 import com.qualcomm.hardware.limelightvision.LLResult;
-import com.qualcomm.hardware.limelightvision.LLResultTypes;
 import com.qualcomm.hardware.limelightvision.LLStatus;
 import com.qualcomm.hardware.limelightvision.Limelight3A;
-import com.qualcomm.robotcore.eventloop.opmode.Disabled;
-import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
-import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
-import org.firstinspires.ftc.robotcore.external.navigation.Pose3D;
 
-import java.util.List;
+import org.firstinspires.ftc.robotcore.external.navigation.Pose3D;
 
 /*
  * This file contains an example of a Linear "OpMode".
@@ -79,7 +72,7 @@ import java.util.List;
 
 @TeleOp(name="Limelight TeleOp", group="Linear OpMode")
 //@Disabled
-public class ATLimelightOpMode extends LinearOpMode {
+public class ATLimelightOpModeOldDoNotUse extends LinearOpMode {
 
     // Declare OpMode members for each of the 4 motors.
     private ElapsedTime runtime = new ElapsedTime();
@@ -279,8 +272,6 @@ public class ATLimelightOpMode extends LinearOpMode {
             telemetry.addData("Status", "Run Time: " + runtime.toString());
             telemetry.addData("Front left/Right", "%4.2f, %4.2f", frontLeftPower, frontRightPower);
             telemetry.addData("Back  left/Right", "%4.2f, %4.2f", backLeftPower, backRightPower);
-            telemetry.addData("AT is #1!", 4174);
-            telemetry.addData("Status", "Run Time: " + runtime.toString());
             telemetry.addData("Flywheel Left Speed", "%.2f ticks/sec", fwlSpeed);
             telemetry.addData("Flywheel Right Speed", "%.2f ticks/sec", fwrSpeed);
             telemetry.addData("Flywheel Left (actual)", "%.2f ticks/sec", fwl.getVelocity());
