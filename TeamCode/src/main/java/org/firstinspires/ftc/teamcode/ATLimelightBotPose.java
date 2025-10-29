@@ -33,6 +33,8 @@ import com.qualcomm.robotcore.eventloop.opmode.Disabled;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import static org.firstinspires.ftc.teamcode.CONSTANTS.*;
+
+import com.qualcomm.robotcore.hardware.CRServo;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
@@ -60,7 +62,7 @@ public class ATLimelightBotPose extends LinearOpMode {
     private DcMotor intake1 = null;
     private Servo sorting1 = null;
     private Servo sorting2 = null;
-    private Servo limelightmount = null;
+    private CRServo limelightmount = null;
 
 
     private Limelight3A limelight;
@@ -75,6 +77,8 @@ public class ATLimelightBotPose extends LinearOpMode {
         fwr = hardwareMap.get(DcMotorEx.class, "fwr");
         intake1 = hardwareMap.get(DcMotor.class, "intake1");
         sorting1 = hardwareMap.get(Servo.class, "sorting1");
+        sorting2 = hardwareMap.get(Servo.class, "sorting2");
+        limelightmount = hardwareMap.get(CRServo.class, "limelightmount");
         limelight = hardwareMap.get(Limelight3A.class, "limelight");
 
         fL.setDirection(DcMotor.Direction.FORWARD);
@@ -154,14 +158,14 @@ public class ATLimelightBotPose extends LinearOpMode {
                 fwr.setPower(0);
                 fwl.setPower(0);
             }
-            if (gamepad1.b) {
+            if (gamepad1.x) {
                 sorting1.setPosition(0.5);
             }
-            if (gamepad1.b) {
+            if (gamepad1.y) {
                 sorting2.setPosition(0.61);
             }
-            if (gamepad1.b) {
-                limelightmount.setPosition(0.61);
+            if (gamepad1.dpad_left) {
+                limelightmount.setPower(0.61);
             }
 
 
