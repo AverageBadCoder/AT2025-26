@@ -26,8 +26,10 @@ public class ServoTest extends LinearOpMode {
             // Use gamepad 1's right and left bumpers to control the servo
             if (gamepad1.right_bumper) {
                 servoPosition += 0.01;
+                sleep(100);
             } else if (gamepad1.left_bumper) {
                 servoPosition -= 0.01;
+                sleep(100);
             }
 
             // Clamp the servo position to be between 0.0 and 1.0

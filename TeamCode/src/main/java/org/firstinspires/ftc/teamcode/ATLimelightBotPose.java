@@ -159,7 +159,8 @@ public class ATLimelightBotPose extends LinearOpMode {
                 fwl.setPower(0);
             }
             if (gamepad1.x) {
-                sorting1.setPosition(0.5);
+                sorting1.setPosition(0.82);//three postions are .82, .44, .07
+
             }
             if (gamepad1.y) {
                 sorting2.setPosition(0.61);
