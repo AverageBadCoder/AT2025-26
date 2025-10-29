@@ -36,6 +36,7 @@ import static org.firstinspires.ftc.teamcode.CONSTANTS.*;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
+import com.qualcomm.robotcore.hardware.Servo;
 import com.qualcomm.robotcore.util.ElapsedTime;
 import com.qualcomm.hardware.limelightvision.LLResult;
 import com.qualcomm.hardware.limelightvision.LLResultTypes;
@@ -54,21 +55,45 @@ public class ATLimelightBotPose extends LinearOpMode {
     private DcMotor bL = null;
     private DcMotor fR = null;
     private DcMotor bR = null;
+    private DcMotorEx fwl = null;
+    private DcMotorEx fwr = null;
+    private DcMotor intake1 = null;
+    private Servo sorting1 = null;
+    private Servo sorting2 = null;
+    private Servo limelightmount = null;
+
 
     private Limelight3A limelight;
 
     @Override
     public void runOpMode() {
-        fL = hardwareMap.get(DcMotor.class, "fL");
-        bL = hardwareMap.get(DcMotor.class, "bL");
-        fR = hardwareMap.get(DcMotor.class, "fR");
-        bR = hardwareMap.get(DcMotor.class, "bR");
+        fL = hardwareMap.get(DcMotorEx.class, "fL");
+        bL = hardwareMap.get(DcMotorEx.class, "bL");
+        fR = hardwareMap.get(DcMotorEx.class, "fR");
+        bR = hardwareMap.get(DcMotorEx.class, "bR");
+        fwl = hardwareMap.get(DcMotorEx.class, "fwl");
+        fwr = hardwareMap.get(DcMotorEx.class, "fwr");
+        intake1 = hardwareMap.get(DcMotor.class, "intake1");
+        sorting1 = hardwareMap.get(Servo.class, "sorting1");
         limelight = hardwareMap.get(Limelight3A.class, "limelight");
 
         fL.setDirection(DcMotor.Direction.FORWARD);
+        fL.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+
         bL.setDirection(DcMotor.Direction.FORWARD);
+        bL.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+
         fR.setDirection(DcMotor.Direction.REVERSE);
+        fR.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+
         bR.setDirection(DcMotor.Direction.REVERSE);
+        bR.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+
+        fwl.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+        fwr.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+
+        fwl.setDirection(DcMotor.Direction.FORWARD);
+        fwr.setDirection(DcMotor.Direction.REVERSE);
 
         for (DcMotor m : new DcMotor[]{fL, fR, bL, bR}) {
             m.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
@@ -107,6 +132,45 @@ public class ATLimelightBotPose extends LinearOpMode {
             } else {
                 driveMecanum(axial, lateral, rotation);
             }
+
+
+
+            if (gamepad1.left_trigger > 0.1 && gamepad1.left_trigger < 0.5) { //intake speed forward
+                intake1.setDirection(DcMotor.Direction.FORWARD);
+                intake1.setPower(.5);
+            } else if (gamepad1.left_trigger > 0.5) {
+                intake1.setPower(.9);
+            }
+
+            if (gamepad1.right_trigger > 0.1 && gamepad1.right_trigger < 0.5) { //reverse direction
+                intake1.setDirection(DcMotor.Direction.REVERSE);
+                intake1.setPower(.5);
+            } else if (gamepad1.right_trigger > 0.5) {
+                intake1.setPower(.9);
+            } else {
+                intake1.setPower(0);
+            }
+            if (gamepad1.b) {
+                fwr.setPower(0);
+                fwl.setPower(0);
+            }
+            if (gamepad1.b) {
+                sorting1.setPosition(0.5);
+            }
+            if (gamepad1.b) {
+                sorting2.setPosition(0.61);
+            }
+            if (gamepad1.b) {
+                limelightmount.setPosition(0.61);
+            }
+
+
+
+            telemetry.addData("Status", "Run Time: " + runtime.toString());
+            telemetry.addData("Flywheel Left Speed", "%.2f ticks/sec", fwlSpeed);
+            telemetry.addData("Flywheel Right Speed", "%.2f ticks/sec", fwrSpeed);
+            telemetry.addData("Flywheel Left (actual)", "%.2f ticks/sec", fwl.getVelocity());
+            telemetry.addData("Flywheel Right (actual)", "%.2f ticks/sec", fwr.getVelocity());
 
             telemetry.update();
         }
@@ -203,4 +267,6 @@ public class ATLimelightBotPose extends LinearOpMode {
         bL.setPower(backLeftPower);
         bR.setPower(backRightPower);
     }
+
+
 }
