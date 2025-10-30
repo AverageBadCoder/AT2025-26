@@ -149,6 +149,7 @@ public class ATLimelightBotPose extends LinearOpMode {
                 intake1.setDirection(DcMotor.Direction.REVERSE);
                 if (ballColor.equals("Unknown")) {
                     intake1.setPower(intakeSpeed);
+                    lastBallColor = "Unknown";
                 } else {
                     intake1.setPower(0);
                     if (lastBallColor.equals("Unknown")) {
