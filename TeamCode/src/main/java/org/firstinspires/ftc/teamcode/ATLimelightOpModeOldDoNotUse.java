@@ -29,6 +29,7 @@
 
 package org.firstinspires.ftc.teamcode;
 
+import com.qualcomm.robotcore.eventloop.opmode.Disabled;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import static org.firstinspires.ftc.teamcode.CONSTANTS.*;
@@ -71,7 +72,7 @@ import org.firstinspires.ftc.robotcore.external.navigation.Pose3D;
  */
 
 @TeleOp(name="Limelight TeleOp", group="Linear OpMode")
-//@Disabled
+@Disabled
 public class ATLimelightOpModeOldDoNotUse extends LinearOpMode {
 
     // Declare OpMode members for each of the 4 motors.

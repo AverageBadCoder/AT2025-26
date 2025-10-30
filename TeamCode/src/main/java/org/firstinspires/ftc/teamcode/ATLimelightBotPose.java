@@ -48,6 +48,7 @@ import com.qualcomm.robotcore.eventloop.opmode.Disabled;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import org.firstinspires.ftc.robotcore.external.navigation.Pose3D;
+import com.qualcomm.robotcore.hardware.ColorSensor;
 
 @TeleOp(name="Limelight AutoMove", group="Linear OpMode")
 public class ATLimelightBotPose extends LinearOpMode {
@@ -63,9 +64,11 @@ public class ATLimelightBotPose extends LinearOpMode {
     private Servo sorting1 = null;
     private Servo sorting2 = null;
     private CRServo limelightmount = null;
-
-
     private Limelight3A limelight;
+    private ColorSensor colorSensor;
+    private int servoIndex = 0;  // start at first position
+    private String[] slotColors = {"Empty", "Empty", "Empty"};
+    private String lastBallColor = "Unknown";
 
     @Override
     public void runOpMode() {
@@ -80,6 +83,7 @@ public class ATLimelightBotPose extends LinearOpMode {
         sorting2 = hardwareMap.get(Servo.class, "sorting2");
         limelightmount = hardwareMap.get(CRServo.class, "limelightmount");
         limelight = hardwareMap.get(Limelight3A.class, "limelight");
+        colorSensor = hardwareMap.get(ColorSensor.class, "colorSensor");
 
         fL.setDirection(DcMotor.Direction.FORWARD);
         fL.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
@@ -126,6 +130,7 @@ public class ATLimelightBotPose extends LinearOpMode {
                 telemetry.addLine("No Limelight pose");
             }
 
+//            driver values
             double axial   = gamepad1.left_stick_y;
             double lateral =  -gamepad1.left_stick_x;
             double rotation = gamepad1.right_stick_x;
@@ -137,31 +142,48 @@ public class ATLimelightBotPose extends LinearOpMode {
                 driveMecanum(axial, lateral, rotation);
             }
 
+            String ballColor = checkColor();  // Get current detected color
+            sorting1.setPosition(suzani[servoIndex]);
 
-
-            if (gamepad1.left_trigger > 0.1 && gamepad1.left_trigger < 0.5) { //intake speed forward
-                intake1.setDirection(DcMotor.Direction.FORWARD);
-                intake1.setPower(.5);
-            } else if (gamepad1.left_trigger > 0.5) {
-                intake1.setPower(.9);
-            }
-
-            if (gamepad1.right_trigger > 0.1 && gamepad1.right_trigger < 0.5) { //reverse direction
+            if (gamepad1.left_trigger > 0.1) {
                 intake1.setDirection(DcMotor.Direction.REVERSE);
-                intake1.setPower(.5);
-            } else if (gamepad1.right_trigger > 0.5) {
-                intake1.setPower(.9);
+                if (ballColor.equals("Unknown")) {
+                    intake1.setPower(intakeSpeed);
+                } else {
+                    intake1.setPower(0);
+                    if (lastBallColor.equals("Unknown")) {
+                        lastBallColor = ballColor;
+                        // Store color in current slot
+                        slotColors[servoIndex] = ballColor;
+                        // Advance to next slot if available
+                        if (servoIndex < 2) {
+                            servoIndex++;
+                            sorting1.setPosition(suzani[servoIndex]);
+                        } else {
+                            servoIndex = 0;
+                            sorting1.setPosition(suzani[servoIndex]);
+                        }
+                        sleep(200);
+                    }
+                }
+            } else if (gamepad1.right_trigger > 0.1) {
+                intake1.setDirection(DcMotor.Direction.FORWARD);
             } else {
                 intake1.setPower(0);
             }
+            telemetry.addData("Slot 1", slotColors[0]);
+            telemetry.addData("Slot 2", slotColors[1]);
+            telemetry.addData("Slot 3", slotColors[2]);
+            telemetry.addData("Servo Index", servoIndex);
+
             if (gamepad1.b) {
                 fwr.setPower(0);
                 fwl.setPower(0);
             }
             if (gamepad1.x) {
                 sorting1.setPosition(0.82);//three postions are .82, .44, .07
-
             }
+
             if (gamepad1.y) {
                 sorting2.setPosition(0.61);
             }
@@ -177,7 +199,6 @@ public class ATLimelightBotPose extends LinearOpMode {
             telemetry.addData("Flywheel Left (actual)", "%.2f ticks/sec", fwl.getVelocity());
             telemetry.addData("Flywheel Right (actual)", "%.2f ticks/sec", fwr.getVelocity());
 
-            telemetry.update();
         }
     }
 
@@ -271,6 +292,46 @@ public class ATLimelightBotPose extends LinearOpMode {
         fR.setPower(frontRightPower);
         bL.setPower(backLeftPower);
         bR.setPower(backRightPower);
+    }
+
+    private String checkColor(){
+        double[] current = {
+                colorSensor.red(),
+                colorSensor.green(),
+                colorSensor.blue(),
+                colorSensor.alpha()
+        };
+        // Compute Euclidean distance to each reference
+        double purpleDistance = 0;
+        double greenDistance = 0;
+        for (int i = 0; i < 4; i++) {
+            purpleDistance += Math.pow(current[i] - purpleBall[i], 2);
+            greenDistance  += Math.pow(current[i] - greenBall[i], 2);
+        }
+        purpleDistance = Math.sqrt(purpleDistance);
+        greenDistance  = Math.sqrt(greenDistance);
+
+        // Choose the closer match if it’s within a tolerance
+        double tolerance = 100; // adjust as needed
+        String detectedColor = "Unknown";
+
+        if (purpleDistance < greenDistance && purpleDistance < tolerance) {
+            detectedColor = "Purple";
+        } else if (greenDistance < purpleDistance && greenDistance < tolerance) {
+            detectedColor = "Green";
+        }
+
+        // Telemetry for debugging
+        telemetry.addData("Red", current[0]);
+        telemetry.addData("Green", current[1]);
+        telemetry.addData("Blue", current[2]);
+        telemetry.addData("Alpha", current[3]);
+        telemetry.addData("Purple Distance", purpleDistance);
+        telemetry.addData("Green Distance", greenDistance);
+        telemetry.addData("Detected", detectedColor);
+        telemetry.update();
+
+        return detectedColor;
     }
 
 
