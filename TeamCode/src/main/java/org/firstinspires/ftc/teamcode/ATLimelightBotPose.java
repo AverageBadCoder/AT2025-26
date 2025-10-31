@@ -49,6 +49,8 @@ import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import org.firstinspires.ftc.robotcore.external.navigation.Pose3D;
 import com.qualcomm.robotcore.hardware.ColorSensor;
+import java.util.ArrayList;
+import java.util.List;
 
 @TeleOp(name="Limelight AutoMove", group="Linear OpMode")
 public class ATLimelightBotPose extends LinearOpMode {
@@ -83,6 +85,8 @@ public class ATLimelightBotPose extends LinearOpMode {
         sorting2 = hardwareMap.get(Servo.class, "sorting2");
         limelightmount = hardwareMap.get(CRServo.class, "limelightmount");
         limelight = hardwareMap.get(Limelight3A.class, "limelight");
+        limelight.pipelineSwitch(1);
+        limelight.start();
         colorSensor = hardwareMap.get(ColorSensor.class, "colorSensor");
 
         fL.setDirection(DcMotor.Direction.FORWARD);
@@ -107,7 +111,6 @@ public class ATLimelightBotPose extends LinearOpMode {
             m.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
         }
 
-        limelight.start();
         telemetry.addData("Status", "Initialized");
         telemetry.update();
 
@@ -117,7 +120,13 @@ public class ATLimelightBotPose extends LinearOpMode {
         while (opModeIsActive()) {
             LLResult result = limelight.getLatestResult();
             double currX = 0, currY = 0, currYaw = 0;
+            LLStatus status = limelight.getStatus();
+            adjustLl(result);
 
+            telemetry.addData("Limelight Device Name", limelight.getDeviceName());
+            telemetry.addData("Pipeline Index", status.getPipelineIndex());
+            telemetry.addData("Has Result", (result != null));
+            telemetry.addData("Result Valid", (result != null && result.isValid()));
             if (result != null && result.isValid()) {
                 Pose3D botpose = result.getBotpose();
                 currX = botpose.getPosition().x;
@@ -153,6 +162,7 @@ public class ATLimelightBotPose extends LinearOpMode {
                 } else {
                     intake1.setPower(0);
                     if (lastBallColor.equals("Unknown")) {
+                        ballColor = checkColor();
                         lastBallColor = ballColor;
                         // Store color in current slot
                         slotColors[servoIndex] = ballColor;
@@ -160,11 +170,7 @@ public class ATLimelightBotPose extends LinearOpMode {
                         if (servoIndex < 2) {
                             servoIndex++;
                             sorting1.setPosition(suzani[servoIndex]);
-                        } else {
-                            servoIndex = 0;
-                            sorting1.setPosition(suzani[servoIndex]);
                         }
-                        sleep(200);
                     }
                 }
             } else if (gamepad1.right_trigger > 0.1) {
@@ -178,8 +184,33 @@ public class ATLimelightBotPose extends LinearOpMode {
             telemetry.addData("Servo Index", servoIndex);
 
             if (gamepad1.b) {
+                String[] pattern = {"purple", "green", "purple"};
+                List<Double> servoSequence = new ArrayList<>();
+
+                // Copy of slotColors so we don't reuse the same slot twice
+                boolean[] used = new boolean[slotColors.length];
+
+                for (String targetColor : pattern) {
+                    for (int i = 0; i < slotColors.length; i++) {
+                        if (!used[i] && slotColors[i].equalsIgnoreCase(targetColor)) {
+                            servoSequence.add(suzano[i]);  // add servo position corresponding to that slot
+                            used[i] = true;                // mark slot as used
+                            break;                         // move on to next pattern color
+                        }
+                    }
+                }
+
                 fwr.setPower(0);
                 fwl.setPower(0);
+                for (int i = 0; i < servoSequence.size(); i++) {
+                    double pos = servoSequence.get(i);
+                    sorting1.setPosition(pos);
+                    sleep(1000);  // wait for servo to reach position
+                    sorting2.setPosition(wackUp);
+                    sleep(1000);
+                    sorting2.setPosition(wackDown);
+                    sleep(1000);
+                }
             }
             if (gamepad1.x) {
                 sorting1.setPosition(0.82);//three postions are .82, .44, .07
@@ -295,6 +326,28 @@ public class ATLimelightBotPose extends LinearOpMode {
         bR.setPower(backRightPower);
     }
 
+    private void adjustLl(LLResult result){
+        if (result != null && result.isValid()) {
+            double kP = 0.1;
+            double deadband = 10;
+            double servoPower = 0;
+
+            double tx = result.getTx();
+            if (tx > 0){
+                servoPower = kP;
+            } else {
+                servoPower = -kP;
+            }
+
+            if (Math.abs(tx) < deadband) {
+                servoPower = 0;
+            }
+            limelightmount.setPower(servoPower);
+        } else {
+            limelightmount.setPower(0);
+        }
+    }
+
     private String checkColor(){
         double[] current = {
                 colorSensor.red(),
@@ -313,7 +366,7 @@ public class ATLimelightBotPose extends LinearOpMode {
         greenDistance  = Math.sqrt(greenDistance);
 
         // Choose the closer match if it’s within a tolerance
-        double tolerance = 100; // adjust as needed
+        double tolerance = 20; // adjust as needed
         String detectedColor = "Unknown";
 
         if (purpleDistance < greenDistance && purpleDistance < tolerance) {
