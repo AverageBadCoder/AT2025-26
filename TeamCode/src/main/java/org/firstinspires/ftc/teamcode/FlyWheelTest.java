@@ -36,7 +36,9 @@ import static org.firstinspires.ftc.teamcode.CONSTANTS.*;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
+import com.qualcomm.robotcore.hardware.Servo;
 import com.qualcomm.robotcore.util.ElapsedTime;
+import static org.firstinspires.ftc.teamcode.CONSTANTS.*;
 import com.qualcomm.hardware.limelightvision.LLResult;
 import com.qualcomm.hardware.limelightvision.LLResultTypes;
 import com.qualcomm.hardware.limelightvision.LLStatus;
@@ -83,6 +85,7 @@ public class FlyWheelTest extends LinearOpMode {
 
     double fwlSpeed = 0;
     double fwrSpeed = 0;
+    private Servo sorting2 = null;
 
     private ElapsedTime runtime = new ElapsedTime();
 
@@ -96,6 +99,8 @@ public class FlyWheelTest extends LinearOpMode {
 
         fwl.setDirection(DcMotor.Direction.FORWARD);
         fwr.setDirection(DcMotor.Direction.REVERSE);
+
+        sorting2 = hardwareMap.get(Servo.class, "sorting2");
 
         telemetry.addData("Status", "Initialized");
         telemetry.update();
@@ -125,6 +130,13 @@ public class FlyWheelTest extends LinearOpMode {
             // Apply velocities
             fwl.setVelocity(fwlSpeed);
             fwr.setVelocity(fwrSpeed);
+
+            if (gamepad1.x) {
+                sorting2.setPosition(wackDown);//three postions are .82, .44, .07
+            }
+            if (gamepad1.y) {
+                sorting2.setPosition(wackUp);
+            }
 
             // Telemetry
             telemetry.addData("Status", "Run Time: " + runtime.toString());

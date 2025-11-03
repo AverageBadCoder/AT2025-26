@@ -29,6 +29,7 @@
 
 package org.firstinspires.ftc.teamcode;
 
+import com.qualcomm.hardware.gobilda.GoBildaPinpointDriver;
 import com.qualcomm.robotcore.eventloop.opmode.Disabled;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
@@ -48,13 +49,15 @@ import com.qualcomm.robotcore.eventloop.opmode.Disabled;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import org.firstinspires.ftc.robotcore.external.navigation.Pose3D;
+import org.firstinspires.ftc.robotcore.external.navigation.Pose2D;
 import com.qualcomm.robotcore.hardware.ColorSensor;
 import java.util.ArrayList;
 import java.util.List;
+import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 
 @TeleOp(name="Limelight AutoMove", group="Linear OpMode")
 public class ATLimelightBotPose extends LinearOpMode {
-
+    GoBildaPinpointDriver odo;
     private ElapsedTime runtime = new ElapsedTime();
     private DcMotor fL = null;
     private DcMotor bL = null;
@@ -119,7 +122,7 @@ public class ATLimelightBotPose extends LinearOpMode {
 
         while (opModeIsActive()) {
             LLResult result = limelight.getLatestResult();
-            double currX = 0, currY = 0, currYaw = 0;
+            double currX = 0, currY = 0;
             LLStatus status = limelight.getStatus();
             adjustLl(result);
 
@@ -131,10 +134,8 @@ public class ATLimelightBotPose extends LinearOpMode {
                 Pose3D botpose = result.getBotpose();
                 currX = botpose.getPosition().x;
                 currY = botpose.getPosition().y;
-                currYaw = botpose.getOrientation().getYaw();
                 telemetry.addData("X (m)", currX);
                 telemetry.addData("Y (m)", currY);
-                telemetry.addData("Yaw (deg)", Math.toDegrees(currYaw));
             } else {
                 telemetry.addLine("No Limelight pose");
             }
@@ -146,7 +147,7 @@ public class ATLimelightBotPose extends LinearOpMode {
 
             double targX = 0, targY = 0, targYaw = 0;
             if (gamepad1.a && result != null && result.isValid()) {
-                driveToOrigin(currX, targX, currY, targY, currYaw, targYaw);
+                driveToOrigin(currX, targX, currY, targY, targYaw);
             } else {
                 driveMecanum(axial, lateral, rotation);
             }
@@ -213,11 +214,10 @@ public class ATLimelightBotPose extends LinearOpMode {
                 }
             }
             if (gamepad1.x) {
-                sorting1.setPosition(0.82);//three postions are .82, .44, .07
+                sorting2.setPosition(wackDown);//three postions are .82, .44, .07
             }
-
             if (gamepad1.y) {
-                sorting2.setPosition(0.61);
+                sorting2.setPosition(wackUp);
             }
             if (gamepad1.dpad_left) {
                 limelightmount.setPower(0.61);
@@ -234,7 +234,11 @@ public class ATLimelightBotPose extends LinearOpMode {
         }
     }
 
-    private void driveToOrigin(double currX, double targX, double currY, double targY, double currYaw, double targYaw) {
+    private void driveToOrigin(double currX, double targX, double currY, double targY, double targYaw) {
+        Pose2D pos = odo.getPosition();
+        odo.update();
+        double currYaw = pos.getHeading(AngleUnit.DEGREES);
+
         // Tunable gains
         double kP_drive = 0.8;     // position proportional gain
         double kP_turn  = 1.0;     // yaw proportional gain (adjust 0.5–1.5)
@@ -366,7 +370,7 @@ public class ATLimelightBotPose extends LinearOpMode {
         greenDistance  = Math.sqrt(greenDistance);
 
         // Choose the closer match if it’s within a tolerance
-        double tolerance = 20; // adjust as needed
+        double tolerance = 40; // adjust as needed
         String detectedColor = "Unknown";
 
         if (purpleDistance < greenDistance && purpleDistance < tolerance) {
