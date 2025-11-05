@@ -85,6 +85,7 @@ public class FlyWheelTest extends LinearOpMode {
 
     double fwlSpeed = 0;
     double fwrSpeed = 0;
+    private Servo sorting1 = null;
     private Servo sorting2 = null;
 
     private ElapsedTime runtime = new ElapsedTime();
@@ -100,6 +101,7 @@ public class FlyWheelTest extends LinearOpMode {
         fwl.setDirection(DcMotor.Direction.FORWARD);
         fwr.setDirection(DcMotor.Direction.REVERSE);
 
+        sorting1 = hardwareMap.get(Servo.class, "sorting1");
         sorting2 = hardwareMap.get(Servo.class, "sorting2");
 
         telemetry.addData("Status", "Initialized");
@@ -107,10 +109,10 @@ public class FlyWheelTest extends LinearOpMode {
 
         waitForStart();
         runtime.reset();
-
         // Choose a max velocity (depends on motor/encoder)
         double maxVelocity = 60000; // adjust to your motor's spec
         double step = 50;          // ticks/sec change per nudge
+        double susanPos = 0;
 
         while (opModeIsActive()) {
             // Adjust left flywheel speed
@@ -137,6 +139,16 @@ public class FlyWheelTest extends LinearOpMode {
             if (gamepad1.y) {
                 sorting2.setPosition(wackUp);
             }
+
+            if (gamepad1.a) {
+                susanPos -= 0.01;//three postions are .82, .44, .07
+                sleep(50);
+            }
+            if (gamepad1.b) {
+                susanPos += 0.01;
+                sleep(50);
+            }
+            sorting1.setPosition(susanPos);
 
             // Telemetry
             telemetry.addData("Status", "Run Time: " + runtime.toString());

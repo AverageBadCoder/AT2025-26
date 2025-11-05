@@ -1,10 +1,13 @@
 package org.firstinspires.ftc.teamcode;
 
+import static org.firstinspires.ftc.teamcode.CONSTANTS.*;
+
 import com.qualcomm.hardware.limelightvision.LLStatus;
 import com.qualcomm.robotcore.eventloop.opmode.Disabled;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.CRServo;
+import com.qualcomm.robotcore.hardware.Servo;
 import com.qualcomm.robotcore.util.Range;
 
 import org.firstinspires.ftc.robotcore.external.navigation.Pose3D;
@@ -17,16 +20,16 @@ import com.qualcomm.hardware.limelightvision.LLResult;
  * so that the Limelight stays centered on the tag.
  */
 @TeleOp(name = "Limelight Servo Tracker", group = "Concept")
-@Disabled
+//@Disabled
 public class LimelightServoTracker extends LinearOpMode {
 
     private Limelight3A limelight;
-    private CRServo limelightmount;
+    private Servo limelightmount;
 
     @Override
     public void runOpMode() throws InterruptedException {
         // Hardware initialization
-        limelightmount = hardwareMap.get(CRServo.class, "limelightmount");
+        limelightmount = hardwareMap.get(Servo.class, "limelightmount");
         limelight = hardwareMap.get(Limelight3A.class, "limelight");
         limelight.pipelineSwitch(1);
         limelight.start();
@@ -34,6 +37,7 @@ public class LimelightServoTracker extends LinearOpMode {
         telemetry.addLine("Limelight Servo Tracker Initialized");
         telemetry.addLine("Waiting for start...");
         telemetry.update();
+        double servoPos = 0.5;
 
         waitForStart();
 
@@ -55,28 +59,27 @@ public class LimelightServoTracker extends LinearOpMode {
                 telemetry.addData("Y (m)", currY);
                 telemetry.addData("Yaw (deg)", Math.toDegrees(currYaw));
                 telemetry.addData("Class", limelightmount.getClass().getSimpleName());
-                double kP = 0.1;      // tune this (start small!)
-                double deadband = 15; // degrees
-                double servoPower = 0;
+                double tolerance = 15; // degrees
 
                 double tx = result.getTx();
-                if (tx > 0){
-                    servoPower = kP;
-                } else {
-                    servoPower = -kP;
+                if (tx > tolerance){
+                    servoPos += 0.01;
+                } else if (tx < -tolerance) {
+                    servoPos -= 0.01;
                 }
 
-                if (Math.abs(tx) < deadband) {
-                    servoPower = 0;
+                if (servoPos > llServoMax) {
+                    servoPos = llServoMax;
+                } else if (servoPos < llServoMin){
+                    servoPos = llServoMin;
                 }
+                sleep(10);
 
-                limelightmount.setPower(servoPower);
+                limelightmount.setPosition(servoPos);
 
                 telemetry.addData("tx", tx);
-                telemetry.addData("Servo Power", servoPower);
             } else {
-                // No valid target — stop moving
-                limelightmount.setPower(0);
+                limelightmount.setPosition(servoPos);
                 telemetry.addLine("No target detected");
             }
             telemetry.update();

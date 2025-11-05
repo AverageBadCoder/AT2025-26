@@ -34,6 +34,7 @@ import com.qualcomm.robotcore.eventloop.opmode.Disabled;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import static org.firstinspires.ftc.teamcode.CONSTANTS.*;
+import com.qualcomm.hardware.rev.RevColorSensorV3;
 
 import com.qualcomm.robotcore.hardware.CRServo;
 import com.qualcomm.robotcore.hardware.DcMotor;
@@ -48,9 +49,13 @@ import com.qualcomm.hardware.limelightvision.Limelight3A;
 import com.qualcomm.robotcore.eventloop.opmode.Disabled;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
+
+import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
 import org.firstinspires.ftc.robotcore.external.navigation.Pose3D;
 import org.firstinspires.ftc.robotcore.external.navigation.Pose2D;
 import com.qualcomm.robotcore.hardware.ColorSensor;
+import com.qualcomm.robotcore.util.Range;
+
 import java.util.ArrayList;
 import java.util.List;
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
@@ -68,15 +73,24 @@ public class ATLimelightBotPose extends LinearOpMode {
     private DcMotor intake1 = null;
     private Servo sorting1 = null;
     private Servo sorting2 = null;
-    private CRServo limelightmount = null;
+    private Servo limelightmount = null;
     private Limelight3A limelight;
+    private double llServoPos = 0.3;
     private ColorSensor colorSensor;
     private int servoIndex = 0;  // start at first position
     private String[] slotColors = {"Empty", "Empty", "Empty"};
     private String lastBallColor = "Unknown";
+    private boolean sweepingForward = true;
+    ElapsedTime llTimer = new ElapsedTime();
 
-    @Override
+    @Override//
     public void runOpMode() {
+        odo = hardwareMap.get(GoBildaPinpointDriver.class, "odo");
+        odo.setOffsets(-65.0, -145.5, DistanceUnit.MM); //these are tuned for 3110-0002-0001 Product Insight #1
+        odo.setEncoderResolution(GoBildaPinpointDriver.GoBildaOdometryPods.goBILDA_4_BAR_POD);
+        odo.setEncoderDirections(GoBildaPinpointDriver.EncoderDirection.FORWARD, GoBildaPinpointDriver.EncoderDirection.FORWARD);
+        odo.resetPosAndIMU();
+
         fL = hardwareMap.get(DcMotorEx.class, "fL");
         bL = hardwareMap.get(DcMotorEx.class, "bL");
         fR = hardwareMap.get(DcMotorEx.class, "fR");
@@ -86,7 +100,7 @@ public class ATLimelightBotPose extends LinearOpMode {
         intake1 = hardwareMap.get(DcMotor.class, "intake1");
         sorting1 = hardwareMap.get(Servo.class, "sorting1");
         sorting2 = hardwareMap.get(Servo.class, "sorting2");
-        limelightmount = hardwareMap.get(CRServo.class, "limelightmount");
+        limelightmount = hardwareMap.get(Servo.class, "limelightmount");
         limelight = hardwareMap.get(Limelight3A.class, "limelight");
         limelight.pipelineSwitch(1);
         limelight.start();
@@ -125,8 +139,10 @@ public class ATLimelightBotPose extends LinearOpMode {
             double currX = 0, currY = 0;
             LLStatus status = limelight.getStatus();
             adjustLl(result);
+            odo.update();
+            Pose2D pos = odo.getPosition();
 
-            telemetry.addData("Limelight Device Name", limelight.getDeviceName());
+            telemetry.addData("Yaw", pos.getHeading(AngleUnit.DEGREES));
             telemetry.addData("Pipeline Index", status.getPipelineIndex());
             telemetry.addData("Has Result", (result != null));
             telemetry.addData("Result Valid", (result != null && result.isValid()));
@@ -163,15 +179,22 @@ public class ATLimelightBotPose extends LinearOpMode {
                 } else {
                     intake1.setPower(0);
                     if (lastBallColor.equals("Unknown")) {
-                        ballColor = checkColor();
-                        lastBallColor = ballColor;
-                        // Store color in current slot
-                        slotColors[servoIndex] = ballColor;
-                        // Advance to next slot if available
-                        if (servoIndex < 2) {
-                            servoIndex++;
-                            sorting1.setPosition(suzani[servoIndex]);
-                        }
+//                        ballColor = checkColor();
+//                        lastBallColor = ballColor;
+//                        // Store color in current slot
+//                        slotColors[servoIndex] = ballColor;
+                        new Thread(()->{
+                            sleep(500);
+                            String ballColorNew = checkColor();
+                            lastBallColor = ballColorNew;
+                            // Store color in current slot
+                            slotColors[servoIndex] = ballColorNew;
+                            if (servoIndex < 2) {
+                                servoIndex++;
+                                sorting1.setPosition(suzani[servoIndex]);
+                            }
+                        }).start();
+
                     }
                 }
             } else if (gamepad1.right_trigger > 0.1) {
@@ -204,8 +227,8 @@ public class ATLimelightBotPose extends LinearOpMode {
                 fwr.setPower(0);
                 fwl.setPower(0);
                 for (int i = 0; i < servoSequence.size(); i++) {
-                    double pos = servoSequence.get(i);
-                    sorting1.setPosition(pos);
+                    double servoPos = servoSequence.get(i);
+                    sorting1.setPosition(servoPos);
                     sleep(1000);  // wait for servo to reach position
                     sorting2.setPosition(wackUp);
                     sleep(1000);
@@ -219,58 +242,55 @@ public class ATLimelightBotPose extends LinearOpMode {
             if (gamepad1.y) {
                 sorting2.setPosition(wackUp);
             }
-            if (gamepad1.dpad_left) {
-                limelightmount.setPower(0.61);
-            }
 
 
 
-            telemetry.addData("Status", "Run Time: " + runtime.toString());
-            telemetry.addData("Flywheel Left Speed", "%.2f ticks/sec", fwlSpeed);
-            telemetry.addData("Flywheel Right Speed", "%.2f ticks/sec", fwrSpeed);
-            telemetry.addData("Flywheel Left (actual)", "%.2f ticks/sec", fwl.getVelocity());
-            telemetry.addData("Flywheel Right (actual)", "%.2f ticks/sec", fwr.getVelocity());
-
+            telemetry.addData("Flywheel Left", "%.2f ticks/sec", fwl.getVelocity());
+            telemetry.addData("Flywheel Right", "%.2f ticks/sec", fwr.getVelocity());
+            telemetry.update();
         }
     }
 
     private void driveToOrigin(double currX, double targX, double currY, double targY, double targYaw) {
-        Pose2D pos = odo.getPosition();
+        // Update odometry and get position
         odo.update();
-        double currYaw = pos.getHeading(AngleUnit.DEGREES);
+        Pose2D pos = odo.getPosition();
 
-        // Tunable gains
-        double kP_drive = 0.8;     // position proportional gain
-        double kP_turn  = 1.0;     // yaw proportional gain (adjust 0.5–1.5)
-        double tolerance = 0.1;    // meters from target
-        double yawTolerance = Math.toRadians(2); // degrees of allowable yaw error
+        // Get heading in radians (always use radians for trig)
+        double currYaw = pos.getHeading(AngleUnit.RADIANS);
 
-        // --- Compute position error in field coordinates ---
+        // --- Tunable gains ---
+        double kP_drive = 0.8;
+        double kP_turn  = 1.0;
+        double tolerance = 0.1; // meters
+        double yawTolerance = Math.toRadians(2); // radians
+
+        // --- Field errors ---
         double fieldErrorX = targX - currX;
         double fieldErrorY = targY - currY;
-        double distance = Math.sqrt(fieldErrorX * fieldErrorX + fieldErrorY * fieldErrorY);
+        double distance = Math.hypot(fieldErrorX, fieldErrorY);
 
-        // --- Compute heading error (normalize to [-π, π]) ---
+        // --- Heading error (normalized) ---
         double yawError = targYaw - currYaw;
         yawError = Math.atan2(Math.sin(yawError), Math.cos(yawError));
 
-        // --- Rotate error into robot's frame so motion stays straight ---
-        // This ensures that translation remains in a fixed world direction
+        // --- Convert field error to robot coordinates ---
         double robotErrorX =  fieldErrorX * Math.cos(-currYaw) - fieldErrorY * Math.sin(-currYaw);
         double robotErrorY =  fieldErrorX * Math.sin(-currYaw) + fieldErrorY * Math.cos(-currYaw);
 
-        // --- Proportional control for motion and rotation ---
-        double targetAxial   = robotErrorX * kP_drive;   // forward/back
-        double targetLateral = -robotErrorY * kP_drive;  // strafe
-        double targetYawPower = yawError * kP_turn;      // spin to target yaw
+        // --- Proportional control ---
+        double targetAxial   = robotErrorX * kP_drive;   // forward/backward
+        double targetLateral = -robotErrorY * kP_drive;  // left/right strafe
+        double targetYawPower = yawError * kP_turn;      // rotation (if enabled)
+        targetYawPower = 0; // temporarily disabled for straight-line testing
 
-        // --- Combine for mecanum drive ---
+        // --- Mecanum power mixing ---
         double frontLeftPower  = targetAxial + targetLateral + targetYawPower;
         double frontRightPower = targetAxial - targetLateral - targetYawPower;
         double backLeftPower   = targetAxial - targetLateral + targetYawPower;
         double backRightPower  = targetAxial + targetLateral - targetYawPower;
 
-        // --- Normalize motor powers ---
+        // --- Normalize powers ---
         double max = Math.max(Math.abs(frontLeftPower), Math.abs(frontRightPower));
         max = Math.max(max, Math.abs(backLeftPower));
         max = Math.max(max, Math.abs(backRightPower));
@@ -281,7 +301,7 @@ public class ATLimelightBotPose extends LinearOpMode {
             backRightPower  /= max;
         }
 
-        // --- Apply power or stop if within tolerance ---
+        // --- Apply or stop ---
         if (distance > tolerance || Math.abs(yawError) > yawTolerance) {
             fL.setPower(frontLeftPower);
             fR.setPower(frontRightPower);
@@ -294,18 +314,14 @@ public class ATLimelightBotPose extends LinearOpMode {
             bR.setPower(0);
         }
 
-        // --- Telemetry for debugging/tuning ---
+        // --- Telemetry ---
         telemetry.addData("Field Error X", fieldErrorX);
         telemetry.addData("Field Error Y", fieldErrorY);
         telemetry.addData("Robot Error X", robotErrorX);
         telemetry.addData("Robot Error Y", robotErrorY);
-        telemetry.addData("Distance", distance);
         telemetry.addData("Yaw Error (deg)", Math.toDegrees(yawError));
-        telemetry.addData("Target Axial", targetAxial);
-        telemetry.addData("Target Lateral", targetLateral);
-        telemetry.addData("Target Yaw Power", targetYawPower);
-        telemetry.update();
     }
+
 
 
     private void driveMecanum(double axial, double lateral, double yaw) {
@@ -330,27 +346,64 @@ public class ATLimelightBotPose extends LinearOpMode {
         bR.setPower(backRightPower);
     }
 
-    private void adjustLl(LLResult result){
+//    private void adjustLl(LLResult result) {
+//        limelightmount.setPosition(llServoPos);
+//        if (result != null && result.isValid()) {
+//            double tx = result.getTx(); // horizontal offset (deg)
+//            double tolerance = 6.0;     // degrees
+//            double kP = 0.0012;          // proportional gain (tune this)
+//            new Thread(() -> {
+//                if (Math.abs(tx) > tolerance) {
+//                    double step = kP * tx;
+//                    llServoPos += step;
+//                    llServoPos = Range.clip(llServoPos, llServoMin, llServoMax);
+//                    limelightmount.setPosition(llServoPos);
+//                    sleep(5);
+//                }
+//            }).start();
+//
+//            telemetry.addData("tx", tx);
+//            telemetry.addData("Servo Position", llServoPos);
+//        } else {
+//            telemetry.addLine("No target detected");
+//        }
+//    }
+
+    private void adjustLl(LLResult result) {
+        limelightmount.setPosition(llServoPos);
+        if (llTimer.milliseconds() < 10) return;
+        llTimer.reset();
+
         if (result != null && result.isValid()) {
-            double kP = 0.1;
-            double deadband = 10;
-            double servoPower = 0;
+            double tx = result.getTx(); // horizontal offset (deg)
+            double kP = 0.0012;          // proportional gain (tune this)
+            double step = kP * tx;
+            llServoPos += step;
+            llServoPos = Range.clip(llServoPos, llServoMin, llServoMax);
+            limelightmount.setPosition(llServoPos);
+            sleep(5);
 
-            double tx = result.getTx();
-            if (tx > 0){
-                servoPower = kP;
-            } else {
-                servoPower = -kP;
-            }
-
-            if (Math.abs(tx) < deadband) {
-                servoPower = 0;
-            }
-            limelightmount.setPower(servoPower);
+            telemetry.addData("tx", tx);
         } else {
-            limelightmount.setPower(0);
+            if (sweepingForward) {
+                llServoPos += searchSpeed;
+                if (llServoPos >= llServoMax) {
+                    llServoPos = llServoMax;
+                    sweepingForward = false;
+                }
+            } else {
+                llServoPos -= searchSpeed;
+                if (llServoPos <= llServoMin) {
+                    llServoPos = llServoMin;
+                    sweepingForward = true;
+                }
+            }
+
+            limelightmount.setPosition(llServoPos);
+            telemetry.addLine("No target detected — searching...");
         }
     }
+
 
     private String checkColor(){
         double[] current = {
@@ -387,8 +440,6 @@ public class ATLimelightBotPose extends LinearOpMode {
         telemetry.addData("Purple Distance", purpleDistance);
         telemetry.addData("Green Distance", greenDistance);
         telemetry.addData("Detected", detectedColor);
-        telemetry.update();
-
         return detectedColor;
     }
 
