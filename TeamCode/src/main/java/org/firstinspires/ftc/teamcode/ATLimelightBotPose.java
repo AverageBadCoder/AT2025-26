@@ -60,7 +60,7 @@ import java.util.ArrayList;
 import java.util.List;
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 
-@TeleOp(name="Limelight AutoMove", group="Linear OpMode")
+@TeleOp(name="AT Tele-Op", group="Linear OpMode")
 public class ATLimelightBotPose extends LinearOpMode {
     GoBildaPinpointDriver odo;
     private ElapsedTime runtime = new ElapsedTime();
@@ -81,6 +81,13 @@ public class ATLimelightBotPose extends LinearOpMode {
     private String[] slotColors = {"Empty", "Empty", "Empty"};
     private String lastBallColor = "Unknown";
     private boolean sweepingForward = true;
+    private boolean intakeReady = true;
+
+//    manual booleans
+    private int manualServoIndex = 0;
+    private boolean flywheelOn = false;
+    private boolean aWasPressed = false;
+    private boolean xWasPressed = false;
     ElapsedTime llTimer = new ElapsedTime();
 
     @Override//
@@ -102,7 +109,6 @@ public class ATLimelightBotPose extends LinearOpMode {
         sorting2 = hardwareMap.get(Servo.class, "sorting2");
         limelightmount = hardwareMap.get(Servo.class, "limelightmount");
         limelight = hardwareMap.get(Limelight3A.class, "limelight");
-        limelight.pipelineSwitch(1);
         limelight.start();
         colorSensor = hardwareMap.get(ColorSensor.class, "colorSensor");
 
@@ -128,6 +134,41 @@ public class ATLimelightBotPose extends LinearOpMode {
             m.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
         }
 
+        String[] pattern = {"", "", ""};
+//        get pattern
+        limelight.pipelineSwitch(0);
+        LLResult result = limelight.getLatestResult();
+        if (result != null && result.isValid()) {
+
+            List<LLResultTypes.FiducialResult> fiducialResults = result.getFiducialResults();
+            int tagId = 0;
+            for (LLResultTypes.FiducialResult fr : fiducialResults) {
+                tagId = fr.getFiducialId();
+            }
+
+            if (tagId == 21){
+                pattern[0] = "green";
+                pattern[1] = "purple";
+                pattern[2] = "purple";
+            } else if (tagId == 22){
+                pattern[0] = "purple";
+                pattern[1] = "green";
+                pattern[2] = "purple";
+            } else if (tagId == 23){
+                pattern[0] = "purple";
+                pattern[1] = "purple";
+                pattern[2] = "green";
+            }
+
+
+            telemetry.addData("AprilTag ID", tagId);
+            telemetry.addData("Pattern 0", pattern[0]);
+            telemetry.addData("Pattern 1", pattern[1]);
+            telemetry.addData("Pattern 2", pattern[2]);
+
+        } else {
+            telemetry.addLine("No valid AprilTag detected");
+        }
         telemetry.addData("Status", "Initialized");
         telemetry.update();
 
@@ -135,8 +176,9 @@ public class ATLimelightBotPose extends LinearOpMode {
         runtime.reset();
 
         while (opModeIsActive()) {
-            LLResult result = limelight.getLatestResult();
             double currX = 0, currY = 0;
+            limelight.pipelineSwitch(1);
+            result = limelight.getLatestResult();
             LLStatus status = limelight.getStatus();
             adjustLl(result);
             odo.update();
@@ -159,11 +201,15 @@ public class ATLimelightBotPose extends LinearOpMode {
 //            driver values
             double axial   = gamepad1.left_stick_y;
             double lateral =  -gamepad1.left_stick_x;
-            double rotation = gamepad1.right_stick_x;
+            double rotation = -gamepad1.right_stick_x;
+            if (gamepad1.dpad_up){
+                axial = 0.3;
+            }
 
             double targX = 0, targY = 0, targYaw = 0;
             if (gamepad1.a && result != null && result.isValid()) {
-                driveToOrigin(currX, targX, currY, targY, targYaw);
+//                driveToOrigin(targX, targY, targYaw);
+                driveToOrigin(blueX, blueY, blueYaw);
             } else {
                 driveMecanum(axial, lateral, rotation);
             }
@@ -176,29 +222,31 @@ public class ATLimelightBotPose extends LinearOpMode {
                 if (ballColor.equals("Unknown")) {
                     intake1.setPower(intakeSpeed);
                     lastBallColor = "Unknown";
-                } else {
+                } else if (intakeReady){
                     intake1.setPower(0);
                     if (lastBallColor.equals("Unknown")) {
-//                        ballColor = checkColor();
-//                        lastBallColor = ballColor;
-//                        // Store color in current slot
-//                        slotColors[servoIndex] = ballColor;
+                        intakeReady = false;
+                        ballColor = checkColor();
+                        lastBallColor = ballColor;
+                        // Store color in current slot
+                        slotColors[servoIndex] = ballColor;
                         new Thread(()->{
-                            sleep(500);
-                            String ballColorNew = checkColor();
-                            lastBallColor = ballColorNew;
-                            // Store color in current slot
-                            slotColors[servoIndex] = ballColorNew;
+                            sleep(10);
                             if (servoIndex < 2) {
                                 servoIndex++;
                                 sorting1.setPosition(suzani[servoIndex]);
                             }
                         }).start();
-
+//                        delay looking for new color
+                        new Thread(()->{
+                            sleep(2000);
+                            intakeReady = true;
+                        }).start();
                     }
                 }
             } else if (gamepad1.right_trigger > 0.1) {
                 intake1.setDirection(DcMotor.Direction.FORWARD);
+                intake1.setPower(intakeSpeed);
             } else {
                 intake1.setPower(0);
             }
@@ -208,7 +256,6 @@ public class ATLimelightBotPose extends LinearOpMode {
             telemetry.addData("Servo Index", servoIndex);
 
             if (gamepad1.b) {
-                String[] pattern = {"purple", "green", "purple"};
                 List<Double> servoSequence = new ArrayList<>();
 
                 // Copy of slotColors so we don't reuse the same slot twice
@@ -224,8 +271,10 @@ public class ATLimelightBotPose extends LinearOpMode {
                     }
                 }
 
-                fwr.setPower(0);
-                fwl.setPower(0);
+                fwl.setVelocity(fwSpeed);
+                fwr.setVelocity(fwSpeed);
+                sleep(2000);
+
                 for (int i = 0; i < servoSequence.size(); i++) {
                     double servoPos = servoSequence.get(i);
                     sorting1.setPosition(servoPos);
@@ -235,6 +284,11 @@ public class ATLimelightBotPose extends LinearOpMode {
                     sorting2.setPosition(wackDown);
                     sleep(1000);
                 }
+                fwl.setVelocity(0);
+                fwr.setVelocity(0);
+                slotColors[0] = "Empty";
+                slotColors[1] = "Empty";
+                slotColors[2] = "Empty";
             }
             if (gamepad1.x) {
                 sorting2.setPosition(wackDown);//three postions are .82, .44, .07
@@ -243,6 +297,36 @@ public class ATLimelightBotPose extends LinearOpMode {
                 sorting2.setPosition(wackUp);
             }
 
+//            MANUAL OUTTAKING
+            if (gamepad2.a && !aWasPressed) {
+                aWasPressed = true;
+                manualServoIndex++;
+                if (manualServoIndex > 2) manualServoIndex = 0;
+                sorting1.setPosition(suzani[manualServoIndex]);
+            }
+            if (!gamepad2.a) aWasPressed = false;
+// --- Wack Up/Down (GP2.B) ---
+            if (gamepad2.b) {
+                sorting2.setPosition(wackUp);
+                sleep(200);
+                sorting2.setPosition(wackDown);
+                sleep(200);
+            }
+// --- Flywheel Toggle (GP2.X) ---
+            if (gamepad2.x && !xWasPressed) {
+                xWasPressed = true;
+
+                flywheelOn = !flywheelOn;
+
+                if (flywheelOn) {
+                    fwl.setVelocity(fwSpeed);
+                    fwr.setVelocity(fwSpeed);
+                } else {
+                    fwl.setVelocity(0);
+                    fwr.setVelocity(0);
+                }
+            }
+            if (!gamepad2.x) xWasPressed = false;
 
 
             telemetry.addData("Flywheel Left", "%.2f ticks/sec", fwl.getVelocity());
@@ -251,7 +335,7 @@ public class ATLimelightBotPose extends LinearOpMode {
         }
     }
 
-    private void driveToOrigin(double currX, double targX, double currY, double targY, double targYaw) {
+    private void driveToOrigin(double targX, double targY, double targYaw) {
         // Update odometry and get position
         odo.update();
         Pose2D pos = odo.getPosition();
@@ -259,67 +343,68 @@ public class ATLimelightBotPose extends LinearOpMode {
         // Get heading in radians (always use radians for trig)
         double currYaw = pos.getHeading(AngleUnit.RADIANS);
 
-        // --- Tunable gains ---
-        double kP_drive = 0.8;
-        double kP_turn  = 1.0;
-        double tolerance = 0.1; // meters
-        double yawTolerance = Math.toRadians(2); // radians
+        LLResult result = limelight.getLatestResult();
+        if (result.isValid()) {
+            Pose3D botpose = result.getBotpose();
+            double currX = botpose.getPosition().x;
+            double currY = botpose.getPosition().y;
 
-        // --- Field errors ---
-        double fieldErrorX = targX - currX;
-        double fieldErrorY = targY - currY;
-        double distance = Math.hypot(fieldErrorX, fieldErrorY);
+            // --- Tunable gains ---
+            double kP_drive = 0.8;
+            double kP_turn = 0.7;
+            double tolerance = 0.1; // meters
+            double yawTolerance = Math.toRadians(2); // radians
 
-        // --- Heading error (normalized) ---
-        double yawError = targYaw - currYaw;
-        yawError = Math.atan2(Math.sin(yawError), Math.cos(yawError));
+            // --- Field errors ---
+            double fieldErrorX = targX - currX;
+            double fieldErrorY = targY - currY;
+            double distance = Math.hypot(fieldErrorX, fieldErrorY);
 
-        // --- Convert field error to robot coordinates ---
-        double robotErrorX =  fieldErrorX * Math.cos(-currYaw) - fieldErrorY * Math.sin(-currYaw);
-        double robotErrorY =  fieldErrorX * Math.sin(-currYaw) + fieldErrorY * Math.cos(-currYaw);
+            // --- Heading error (normalized) ---
+            double yawError = targYaw - currYaw;
+            yawError = Math.atan2(Math.sin(yawError), Math.cos(yawError));
 
-        // --- Proportional control ---
-        double targetAxial   = robotErrorX * kP_drive;   // forward/backward
-        double targetLateral = -robotErrorY * kP_drive;  // left/right strafe
-        double targetYawPower = yawError * kP_turn;      // rotation (if enabled)
-        targetYawPower = 0; // temporarily disabled for straight-line testing
+            // --- Convert field error to robot coordinates ---
+            double robotErrorX = fieldErrorX * Math.cos(-currYaw) - fieldErrorY * Math.sin(-currYaw);
+            double robotErrorY = fieldErrorX * Math.sin(-currYaw) + fieldErrorY * Math.cos(-currYaw);
 
-        // --- Mecanum power mixing ---
-        double frontLeftPower  = targetAxial + targetLateral + targetYawPower;
-        double frontRightPower = targetAxial - targetLateral - targetYawPower;
-        double backLeftPower   = targetAxial - targetLateral + targetYawPower;
-        double backRightPower  = targetAxial + targetLateral - targetYawPower;
+            // --- Proportional control ---
+            double targetAxial = robotErrorX * kP_drive;   // forward/backward
+            double targetLateral = -robotErrorY * kP_drive;  // left/right strafe
+            double targetYawPower = yawError * kP_turn;      // rotation (if enabled)
+//        targetYawPower = 0; // temporarily disabled for straight-line testing
 
-        // --- Normalize powers ---
-        double max = Math.max(Math.abs(frontLeftPower), Math.abs(frontRightPower));
-        max = Math.max(max, Math.abs(backLeftPower));
-        max = Math.max(max, Math.abs(backRightPower));
-        if (max > 1.0) {
-            frontLeftPower  /= max;
-            frontRightPower /= max;
-            backLeftPower   /= max;
-            backRightPower  /= max;
+            // --- Mecanum power mixing ---
+            double frontLeftPower = targetAxial + targetLateral + targetYawPower;
+            double frontRightPower = targetAxial - targetLateral - targetYawPower;
+            double backLeftPower = targetAxial - targetLateral + targetYawPower;
+            double backRightPower = targetAxial + targetLateral - targetYawPower;
+
+            // --- Normalize powers ---
+            double max = Math.max(Math.abs(frontLeftPower), Math.abs(frontRightPower));
+            max = Math.max(max, Math.abs(backLeftPower));
+            max = Math.max(max, Math.abs(backRightPower));
+            if (max > 1.0) {
+                frontLeftPower /= max;
+                frontRightPower /= max;
+                backLeftPower /= max;
+                backRightPower /= max;
+            }
+
+            // --- Apply or stop ---
+            if (distance > tolerance || Math.abs(yawError) > yawTolerance) {
+                fL.setPower(frontLeftPower);
+                fR.setPower(frontRightPower);
+                bL.setPower(backLeftPower);
+                bR.setPower(backRightPower);
+            } else {
+                fL.setPower(0);
+                fR.setPower(0);
+                bL.setPower(0);
+                bR.setPower(0);
+            }
+            telemetry.addData("Yaw Error (deg)", Math.toDegrees(yawError));
         }
-
-        // --- Apply or stop ---
-        if (distance > tolerance || Math.abs(yawError) > yawTolerance) {
-            fL.setPower(frontLeftPower);
-            fR.setPower(frontRightPower);
-            bL.setPower(backLeftPower);
-            bR.setPower(backRightPower);
-        } else {
-            fL.setPower(0);
-            fR.setPower(0);
-            bL.setPower(0);
-            bR.setPower(0);
-        }
-
-        // --- Telemetry ---
-        telemetry.addData("Field Error X", fieldErrorX);
-        telemetry.addData("Field Error Y", fieldErrorY);
-        telemetry.addData("Robot Error X", robotErrorX);
-        telemetry.addData("Robot Error Y", robotErrorY);
-        telemetry.addData("Yaw Error (deg)", Math.toDegrees(yawError));
     }
 
 
@@ -346,29 +431,6 @@ public class ATLimelightBotPose extends LinearOpMode {
         bR.setPower(backRightPower);
     }
 
-//    private void adjustLl(LLResult result) {
-//        limelightmount.setPosition(llServoPos);
-//        if (result != null && result.isValid()) {
-//            double tx = result.getTx(); // horizontal offset (deg)
-//            double tolerance = 6.0;     // degrees
-//            double kP = 0.0012;          // proportional gain (tune this)
-//            new Thread(() -> {
-//                if (Math.abs(tx) > tolerance) {
-//                    double step = kP * tx;
-//                    llServoPos += step;
-//                    llServoPos = Range.clip(llServoPos, llServoMin, llServoMax);
-//                    limelightmount.setPosition(llServoPos);
-//                    sleep(5);
-//                }
-//            }).start();
-//
-//            telemetry.addData("tx", tx);
-//            telemetry.addData("Servo Position", llServoPos);
-//        } else {
-//            telemetry.addLine("No target detected");
-//        }
-//    }
-
     private void adjustLl(LLResult result) {
         limelightmount.setPosition(llServoPos);
         if (llTimer.milliseconds() < 10) return;
@@ -382,7 +444,6 @@ public class ATLimelightBotPose extends LinearOpMode {
             llServoPos = Range.clip(llServoPos, llServoMin, llServoMax);
             limelightmount.setPosition(llServoPos);
             sleep(5);
-
             telemetry.addData("tx", tx);
         } else {
             if (sweepingForward) {
@@ -404,44 +465,89 @@ public class ATLimelightBotPose extends LinearOpMode {
         }
     }
 
+//
+//    private String checkColor(){
+//        double[] current = {
+//                colorSensor.red(),
+//                colorSensor.green(),
+//                colorSensor.blue(),
+//                colorSensor.alpha()
+//        };
+//        // Compute Euclidean distance to each reference
+//        double purpleDistance = 0;
+//        double greenDistance = 0;
+//        for (int i = 0; i < 4; i++) {
+//            purpleDistance += Math.pow(current[i] - purpleBall[i], 2);
+//            greenDistance  += Math.pow(current[i] - greenBall[i], 2);
+//        }
+//        purpleDistance = Math.sqrt(purpleDistance);
+//        greenDistance  = Math.sqrt(greenDistance);
+//
+//        // Choose the closer match if it’s within a tolerance
+//        double tolerance = 40; // adjust as needed
+//        String detectedColor = "Unknown";
+//
+//        if (purpleDistance < greenDistance && purpleDistance < tolerance) {
+//            detectedColor = "Purple";
+//        } else if (greenDistance < purpleDistance && greenDistance < tolerance) {
+//            detectedColor = "Green";
+//        }
+//
+//        // Telemetry for debugging
+//        telemetry.addData("Red", current[0]);
+//        telemetry.addData("Green", current[1]);
+//        telemetry.addData("Blue", current[2]);
+//        telemetry.addData("Alpha", current[3]);
+//        telemetry.addData("Purple Distance", purpleDistance);
+//        telemetry.addData("Green Distance", greenDistance);
+//        telemetry.addData("Detected", detectedColor);
+//        return detectedColor;
+//    }
 
-    private String checkColor(){
-        double[] current = {
-                colorSensor.red(),
-                colorSensor.green(),
-                colorSensor.blue(),
-                colorSensor.alpha()
-        };
-        // Compute Euclidean distance to each reference
-        double purpleDistance = 0;
-        double greenDistance = 0;
-        for (int i = 0; i < 4; i++) {
-            purpleDistance += Math.pow(current[i] - purpleBall[i], 2);
-            greenDistance  += Math.pow(current[i] - greenBall[i], 2);
+    private String checkColor() {
+        double red = colorSensor.red();
+        double green = colorSensor.green();
+        double blue = colorSensor.blue();
+        purpleBall = normalizeColor(purpleBall);
+        greenBall  = normalizeColor(greenBall);
+
+        // Normalize input
+        double sum = red + green + blue;
+        if (sum > 0) {
+            red /= sum;
+            green /= sum;
+            blue /= sum;
         }
-        purpleDistance = Math.sqrt(purpleDistance);
-        greenDistance  = Math.sqrt(greenDistance);
 
-        // Choose the closer match if it’s within a tolerance
-        double tolerance = 40; // adjust as needed
-        String detectedColor = "Unknown";
+        // Compare with *normalized* reference colors
+        double purpleDistance = colorDistance(new double[]{red, green, blue}, purpleBall);
+        double greenDistance  = colorDistance(new double[]{red, green, blue}, greenBall);
 
-        if (purpleDistance < greenDistance && purpleDistance < tolerance) {
-            detectedColor = "Purple";
-        } else if (greenDistance < purpleDistance && greenDistance < tolerance) {
-            detectedColor = "Green";
-        }
+        String detected = "Unknown";
+        double tolerance = 0.12;  // tuned for normalized distances
 
-        // Telemetry for debugging
-        telemetry.addData("Red", current[0]);
-        telemetry.addData("Green", current[1]);
-        telemetry.addData("Blue", current[2]);
-        telemetry.addData("Alpha", current[3]);
-        telemetry.addData("Purple Distance", purpleDistance);
-        telemetry.addData("Green Distance", greenDistance);
-        telemetry.addData("Detected", detectedColor);
-        return detectedColor;
+        if (purpleDistance < greenDistance && purpleDistance < tolerance)
+            detected = "Purple";
+        else if (greenDistance < purpleDistance && greenDistance < tolerance)
+            detected = "Green";
+
+        telemetry.addData("Norm Red", red);
+        telemetry.addData("Norm Green", green);
+        telemetry.addData("Norm Blue", blue);
+        telemetry.addData("Detected", detected);
+        return detected;
     }
+
+
+    private double[] normalizeColor(double[] rgb) {
+        double sum = rgb[0] + rgb[1] + rgb[2];
+        return new double[]{ rgb[0]/sum, rgb[1]/sum, rgb[2]/sum };
+    }
+
+    private double colorDistance(double[] c1, double[] c2) {
+        return Math.sqrt(Math.pow(c1[0]-c2[0],2) + Math.pow(c1[1]-c2[1],2) + Math.pow(c1[2]-c2[2],2));
+    }
+
 
 
 }

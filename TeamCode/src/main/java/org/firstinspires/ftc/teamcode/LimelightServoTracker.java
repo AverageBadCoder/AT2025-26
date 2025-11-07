@@ -20,7 +20,7 @@ import com.qualcomm.hardware.limelightvision.LLResult;
  * so that the Limelight stays centered on the tag.
  */
 @TeleOp(name = "Limelight Servo Tracker", group = "Concept")
-//@Disabled
+@Disabled
 public class LimelightServoTracker extends LinearOpMode {
 
     private Limelight3A limelight;

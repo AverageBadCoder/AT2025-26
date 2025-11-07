@@ -142,7 +142,7 @@ public class FlyWheelTest extends LinearOpMode {
 
             if (gamepad1.a) {
                 susanPos -= 0.01;//three postions are .82, .44, .07
-                sleep(50);
+                sleep(50); //
             }
             if (gamepad1.b) {
                 susanPos += 0.01;
@@ -152,6 +152,7 @@ public class FlyWheelTest extends LinearOpMode {
 
             // Telemetry
             telemetry.addData("Status", "Run Time: " + runtime.toString());
+            telemetry.addData("susan pos", susanPos);
             telemetry.addData("Flywheel Left Speed", "%.2f ticks/sec", fwlSpeed);
             telemetry.addData("Flywheel Right Speed", "%.2f ticks/sec", fwrSpeed);
             telemetry.addData("Flywheel Left (actual)", "%.2f ticks/sec", fwl.getVelocity());
