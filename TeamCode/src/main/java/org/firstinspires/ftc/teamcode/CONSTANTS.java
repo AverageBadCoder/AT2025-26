@@ -20,8 +20,20 @@ public class CONSTANTS {
     static final double searchSpeed = 0.02;
     static double[] purpleBall = {145, 175, 250, 190};
     static double[] greenBall = {55, 142, 113, 103};
-    static final double blueX = 1.7;
-    static final double blueY = -0.4;
-    static final double blueYaw = -69.5;
+    static final double blueX = 1.6;
+    static final double blueY = -0.5;
+    static final double blueYaw = Math.toRadians(-71);
+
+//    Limelight offsets
+// Camera offset relative to robot CENTER, in meters
+    static final double CAMERA_OFFSET_X = -0.02; // forward (+), backward (-)
+    static final double CAMERA_OFFSET_Y = 0.165; // left (+), right (-)
+    // Servo angle limits → convert servo position to angle
+    static final double SERVO_CENTER_POS = 0.47;  // Forward = 0 rad
+    static final double SERVO_MIN_POS = 0.15;
+    static final double SERVO_MAX_POS = 0.80;
+
+    // Total useful span (example): 260 degrees = 4.537 rad
+    static final double SERVO_TOTAL_ANGLE = Math.toRadians(260);
 
 }

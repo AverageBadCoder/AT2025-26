@@ -59,6 +59,7 @@ import com.qualcomm.robotcore.util.Range;
 import java.util.ArrayList;
 import java.util.List;
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
+import org.firstinspires.ftc.robotcore.external.navigation.YawPitchRollAngles;
 
 @TeleOp(name="AT Tele-Op", group="Linear OpMode")
 public class ATLimelightBotPose extends LinearOpMode {
@@ -76,15 +77,18 @@ public class ATLimelightBotPose extends LinearOpMode {
     private Servo limelightmount = null;
     private Limelight3A limelight;
     private double llServoPos = 0.3;
+    double filtX = 0, filtY = 0, filtYaw = 0;
+    boolean firstFrame = true;
     private ColorSensor colorSensor;
     private int servoIndex = 0;  // start at first position
     private String[] slotColors = {"Empty", "Empty", "Empty"};
+    private String[] pattern = {"purple", "purple", "green"};
     private String lastBallColor = "Unknown";
     private boolean sweepingForward = true;
     private boolean intakeReady = true;
+    private boolean needPattern = true;
 
-//    manual booleans
-    private int manualServoIndex = 0;
+    //    manual booleans
     private boolean flywheelOn = false;
     private boolean aWasPressed = false;
     private boolean xWasPressed = false;
@@ -134,41 +138,7 @@ public class ATLimelightBotPose extends LinearOpMode {
             m.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
         }
 
-        String[] pattern = {"", "", ""};
-//        get pattern
-        limelight.pipelineSwitch(0);
-        LLResult result = limelight.getLatestResult();
-        if (result != null && result.isValid()) {
 
-            List<LLResultTypes.FiducialResult> fiducialResults = result.getFiducialResults();
-            int tagId = 0;
-            for (LLResultTypes.FiducialResult fr : fiducialResults) {
-                tagId = fr.getFiducialId();
-            }
-
-            if (tagId == 21){
-                pattern[0] = "green";
-                pattern[1] = "purple";
-                pattern[2] = "purple";
-            } else if (tagId == 22){
-                pattern[0] = "purple";
-                pattern[1] = "green";
-                pattern[2] = "purple";
-            } else if (tagId == 23){
-                pattern[0] = "purple";
-                pattern[1] = "purple";
-                pattern[2] = "green";
-            }
-
-
-            telemetry.addData("AprilTag ID", tagId);
-            telemetry.addData("Pattern 0", pattern[0]);
-            telemetry.addData("Pattern 1", pattern[1]);
-            telemetry.addData("Pattern 2", pattern[2]);
-
-        } else {
-            telemetry.addLine("No valid AprilTag detected");
-        }
         telemetry.addData("Status", "Initialized");
         telemetry.update();
 
@@ -176,148 +146,56 @@ public class ATLimelightBotPose extends LinearOpMode {
         runtime.reset();
 
         while (opModeIsActive()) {
-            double currX = 0, currY = 0;
-            limelight.pipelineSwitch(1);
-            result = limelight.getLatestResult();
-            LLStatus status = limelight.getStatus();
-            adjustLl(result);
-            odo.update();
-            Pose2D pos = odo.getPosition();
-
-            telemetry.addData("Yaw", pos.getHeading(AngleUnit.DEGREES));
-            telemetry.addData("Pipeline Index", status.getPipelineIndex());
-            telemetry.addData("Has Result", (result != null));
-            telemetry.addData("Result Valid", (result != null && result.isValid()));
-            if (result != null && result.isValid()) {
-                Pose3D botpose = result.getBotpose();
-                currX = botpose.getPosition().x;
-                currY = botpose.getPosition().y;
-                telemetry.addData("X (m)", currX);
-                telemetry.addData("Y (m)", currY);
+            if (needPattern) {
+                checkPattern();
+                driveMecanum();
+                limelightmount.setPosition(SERVO_CENTER_POS);
             } else {
-                telemetry.addLine("No Limelight pose");
+                limelight.pipelineSwitch(1);
+                LLResult result = limelight.getLatestResult();
+                adjustLl(result);
+                logBotPose(result);
+                if (gamepad1.a && result != null && result.isValid()) {
+                    driveToOrigin(blueX, blueY, blueYaw);
+                } else if (gamepad1.x){
+                    driveToOrigin(0, 0, 0);
+                } else {
+                    driveMecanum();
+                }
+                printCurrentRobotPose();
             }
-
-//            driver values
-            double axial   = gamepad1.left_stick_y;
-            double lateral =  -gamepad1.left_stick_x;
-            double rotation = -gamepad1.right_stick_x;
-            if (gamepad1.dpad_up){
-                axial = 0.3;
-            }
-
-            double targX = 0, targY = 0, targYaw = 0;
-            if (gamepad1.a && result != null && result.isValid()) {
-//                driveToOrigin(targX, targY, targYaw);
-                driveToOrigin(blueX, blueY, blueYaw);
-            } else {
-                driveMecanum(axial, lateral, rotation);
-            }
-
-            String ballColor = checkColor();  // Get current detected color
-            sorting1.setPosition(suzani[servoIndex]);
 
             if (gamepad1.left_trigger > 0.1) {
-                intake1.setDirection(DcMotor.Direction.REVERSE);
-                if (ballColor.equals("Unknown")) {
-                    intake1.setPower(intakeSpeed);
-                    lastBallColor = "Unknown";
-                } else if (intakeReady){
-                    intake1.setPower(0);
-                    if (lastBallColor.equals("Unknown")) {
-                        intakeReady = false;
-                        ballColor = checkColor();
-                        lastBallColor = ballColor;
-                        // Store color in current slot
-                        slotColors[servoIndex] = ballColor;
-                        new Thread(()->{
-                            sleep(10);
-                            if (servoIndex < 2) {
-                                servoIndex++;
-                                sorting1.setPosition(suzani[servoIndex]);
-                            }
-                        }).start();
-//                        delay looking for new color
-                        new Thread(()->{
-                            sleep(2000);
-                            intakeReady = true;
-                        }).start();
-                    }
-                }
+                intake();
             } else if (gamepad1.right_trigger > 0.1) {
                 intake1.setDirection(DcMotor.Direction.FORWARD);
                 intake1.setPower(intakeSpeed);
-            } else {
+            }
+            else {
                 intake1.setPower(0);
             }
-            telemetry.addData("Slot 1", slotColors[0]);
-            telemetry.addData("Slot 2", slotColors[1]);
-            telemetry.addData("Slot 3", slotColors[2]);
-            telemetry.addData("Servo Index", servoIndex);
-
             if (gamepad1.b) {
-                List<Double> servoSequence = new ArrayList<>();
-
-                // Copy of slotColors so we don't reuse the same slot twice
-                boolean[] used = new boolean[slotColors.length];
-
-                for (String targetColor : pattern) {
-                    for (int i = 0; i < slotColors.length; i++) {
-                        if (!used[i] && slotColors[i].equalsIgnoreCase(targetColor)) {
-                            servoSequence.add(suzano[i]);  // add servo position corresponding to that slot
-                            used[i] = true;                // mark slot as used
-                            break;                         // move on to next pattern color
-                        }
-                    }
-                }
-
-                fwl.setVelocity(fwSpeed);
-                fwr.setVelocity(fwSpeed);
-                sleep(2000);
-
-                for (int i = 0; i < servoSequence.size(); i++) {
-                    double servoPos = servoSequence.get(i);
-                    sorting1.setPosition(servoPos);
-                    sleep(1000);  // wait for servo to reach position
-                    sorting2.setPosition(wackUp);
-                    sleep(1000);
-                    sorting2.setPosition(wackDown);
-                    sleep(1000);
-                }
-                fwl.setVelocity(0);
-                fwr.setVelocity(0);
-                slotColors[0] = "Empty";
-                slotColors[1] = "Empty";
-                slotColors[2] = "Empty";
-            }
-            if (gamepad1.x) {
-                sorting2.setPosition(wackDown);//three postions are .82, .44, .07
-            }
-            if (gamepad1.y) {
-                sorting2.setPosition(wackUp);
+                outtake();
             }
 
 //            MANUAL OUTTAKING
             if (gamepad2.a && !aWasPressed) {
                 aWasPressed = true;
-                manualServoIndex++;
-                if (manualServoIndex > 2) manualServoIndex = 0;
-                sorting1.setPosition(suzani[manualServoIndex]);
+                servoIndex++;
+                if (servoIndex > 2) servoIndex = 0;
+                sorting1.setPosition(suzani[servoIndex]);
             }
             if (!gamepad2.a) aWasPressed = false;
-// --- Wack Up/Down (GP2.B) ---
+// --- Wack Up/Down ---
             if (gamepad2.b) {
                 sorting2.setPosition(wackUp);
-                sleep(200);
+            } else if (gamepad2.y) {
                 sorting2.setPosition(wackDown);
-                sleep(200);
             }
 // --- Flywheel Toggle (GP2.X) ---
             if (gamepad2.x && !xWasPressed) {
                 xWasPressed = true;
-
                 flywheelOn = !flywheelOn;
-
                 if (flywheelOn) {
                     fwl.setVelocity(fwSpeed);
                     fwr.setVelocity(fwSpeed);
@@ -329,100 +207,49 @@ public class ATLimelightBotPose extends LinearOpMode {
             if (!gamepad2.x) xWasPressed = false;
 
 
+            telemetry.addData("Slot 1", slotColors[0]);
+            telemetry.addData("Slot 2", slotColors[1]);
+            telemetry.addData("Slot 3", slotColors[2]);
+            telemetry.addData("Servo Index", servoIndex);
             telemetry.addData("Flywheel Left", "%.2f ticks/sec", fwl.getVelocity());
             telemetry.addData("Flywheel Right", "%.2f ticks/sec", fwr.getVelocity());
+            telemetry.addData("Pattern 0", pattern[0]);
+            telemetry.addData("Pattern 1", pattern[1]);
+            telemetry.addData("Pattern 2", pattern[2]);
             telemetry.update();
         }
     }
+    private void driveMecanum() {
+        double axial = gamepad1.left_stick_y;
+        double lateral = -gamepad1.left_stick_x;
+        double yaw = -gamepad1.right_stick_x;
 
-    private void driveToOrigin(double targX, double targY, double targYaw) {
-        // Update odometry and get position
-        odo.update();
-        Pose2D pos = odo.getPosition();
-
-        // Get heading in radians (always use radians for trig)
-        double currYaw = pos.getHeading(AngleUnit.RADIANS);
-
-        LLResult result = limelight.getLatestResult();
-        if (result.isValid()) {
-            Pose3D botpose = result.getBotpose();
-            double currX = botpose.getPosition().x;
-            double currY = botpose.getPosition().y;
-
-            // --- Tunable gains ---
-            double kP_drive = 0.8;
-            double kP_turn = 0.7;
-            double tolerance = 0.1; // meters
-            double yawTolerance = Math.toRadians(2); // radians
-
-            // --- Field errors ---
-            double fieldErrorX = targX - currX;
-            double fieldErrorY = targY - currY;
-            double distance = Math.hypot(fieldErrorX, fieldErrorY);
-
-            // --- Heading error (normalized) ---
-            double yawError = targYaw - currYaw;
-            yawError = Math.atan2(Math.sin(yawError), Math.cos(yawError));
-
-            // --- Convert field error to robot coordinates ---
-            double robotErrorX = fieldErrorX * Math.cos(-currYaw) - fieldErrorY * Math.sin(-currYaw);
-            double robotErrorY = fieldErrorX * Math.sin(-currYaw) + fieldErrorY * Math.cos(-currYaw);
-
-            // --- Proportional control ---
-            double targetAxial = robotErrorX * kP_drive;   // forward/backward
-            double targetLateral = -robotErrorY * kP_drive;  // left/right strafe
-            double targetYawPower = yawError * kP_turn;      // rotation (if enabled)
-//        targetYawPower = 0; // temporarily disabled for straight-line testing
-
-            // --- Mecanum power mixing ---
-            double frontLeftPower = targetAxial + targetLateral + targetYawPower;
-            double frontRightPower = targetAxial - targetLateral - targetYawPower;
-            double backLeftPower = targetAxial - targetLateral + targetYawPower;
-            double backRightPower = targetAxial + targetLateral - targetYawPower;
-
-            // --- Normalize powers ---
-            double max = Math.max(Math.abs(frontLeftPower), Math.abs(frontRightPower));
-            max = Math.max(max, Math.abs(backLeftPower));
-            max = Math.max(max, Math.abs(backRightPower));
-            if (max > 1.0) {
-                frontLeftPower /= max;
-                frontRightPower /= max;
-                backLeftPower /= max;
-                backRightPower /= max;
-            }
-
-            // --- Apply or stop ---
-            if (distance > tolerance || Math.abs(yawError) > yawTolerance) {
-                fL.setPower(frontLeftPower);
-                fR.setPower(frontRightPower);
-                bL.setPower(backLeftPower);
-                bR.setPower(backRightPower);
-            } else {
-                fL.setPower(0);
-                fR.setPower(0);
-                bL.setPower(0);
-                bR.setPower(0);
-            }
-            telemetry.addData("Yaw Error (deg)", Math.toDegrees(yawError));
+        if (gamepad1.dpad_up) {
+            axial = -0.2;
         }
-    }
+        if (gamepad1.dpad_down) {
+            axial = 0.2;
+        }
+        if (gamepad1.dpad_right) {
+            lateral = -0.2;
+        }
+        if (gamepad1.dpad_left) {
+            lateral = 0.2;
+        }
 
-
-
-    private void driveMecanum(double axial, double lateral, double yaw) {
-        double frontLeftPower  = axial + lateral + yaw;
+        double frontLeftPower = axial + lateral + yaw;
         double frontRightPower = axial - lateral - yaw;
-        double backLeftPower   = axial - lateral + yaw;
-        double backRightPower  = axial + lateral - yaw;
+        double backLeftPower = axial - lateral + yaw;
+        double backRightPower = axial + lateral - yaw;
 
         double max = Math.max(Math.abs(frontLeftPower), Math.abs(frontRightPower));
         max = Math.max(max, Math.abs(backLeftPower));
         max = Math.max(max, Math.abs(backRightPower));
         if (max > 1.0) {
-            frontLeftPower  /= max;
+            frontLeftPower /= max;
             frontRightPower /= max;
-            backLeftPower   /= max;
-            backRightPower  /= max;
+            backLeftPower /= max;
+            backRightPower /= max;
         }
 
         fL.setPower(frontLeftPower);
@@ -438,13 +265,16 @@ public class ATLimelightBotPose extends LinearOpMode {
 
         if (result != null && result.isValid()) {
             double tx = result.getTx(); // horizontal offset (deg)
-            double kP = 0.0012;          // proportional gain (tune this)
-            double step = kP * tx;
-            llServoPos += step;
-            llServoPos = Range.clip(llServoPos, llServoMin, llServoMax);
-            limelightmount.setPosition(llServoPos);
-            sleep(5);
-            telemetry.addData("tx", tx);
+            double tolerance = 5;
+            if (Math.abs(tx) < tolerance){
+                double kP = 0.001;          // proportional gain (tune this)
+                double step = kP * tx;
+                llServoPos += step;
+                llServoPos = Range.clip(llServoPos, llServoMin, llServoMax);
+                limelightmount.setPosition(llServoPos);
+                sleep(5);
+                telemetry.addData("tx", tx);
+            }
         } else {
             if (sweepingForward) {
                 llServoPos += searchSpeed;
@@ -465,51 +295,101 @@ public class ATLimelightBotPose extends LinearOpMode {
         }
     }
 
-//
-//    private String checkColor(){
-//        double[] current = {
-//                colorSensor.red(),
-//                colorSensor.green(),
-//                colorSensor.blue(),
-//                colorSensor.alpha()
-//        };
-//        // Compute Euclidean distance to each reference
-//        double purpleDistance = 0;
-//        double greenDistance = 0;
-//        for (int i = 0; i < 4; i++) {
-//            purpleDistance += Math.pow(current[i] - purpleBall[i], 2);
-//            greenDistance  += Math.pow(current[i] - greenBall[i], 2);
-//        }
-//        purpleDistance = Math.sqrt(purpleDistance);
-//        greenDistance  = Math.sqrt(greenDistance);
-//
-//        // Choose the closer match if it’s within a tolerance
-//        double tolerance = 40; // adjust as needed
-//        String detectedColor = "Unknown";
-//
-//        if (purpleDistance < greenDistance && purpleDistance < tolerance) {
-//            detectedColor = "Purple";
-//        } else if (greenDistance < purpleDistance && greenDistance < tolerance) {
-//            detectedColor = "Green";
-//        }
-//
-//        // Telemetry for debugging
-//        telemetry.addData("Red", current[0]);
-//        telemetry.addData("Green", current[1]);
-//        telemetry.addData("Blue", current[2]);
-//        telemetry.addData("Alpha", current[3]);
-//        telemetry.addData("Purple Distance", purpleDistance);
-//        telemetry.addData("Green Distance", greenDistance);
-//        telemetry.addData("Detected", detectedColor);
-//        return detectedColor;
-//    }
+    private void logBotPose(LLResult result) {
+        odo.update();
+        Pose2D pos = odo.getPosition();
+
+        telemetry.addData("Yaw", pos.getHeading(AngleUnit.DEGREES));
+        telemetry.addData("Has Result", (result != null));
+        telemetry.addData("Result Valid", (result != null && result.isValid()));
+        if (result != null && result.isValid()) {
+            Pose3D botpose = result.getBotpose();
+            telemetry.addData("X (m)", botpose.getPosition().x);
+            telemetry.addData("Y (m)", botpose.getPosition().y);
+        } else {
+            telemetry.addLine("No Limelight pose");
+        }
+    }
+
+    private void intake() {
+        String ballColor = checkColor();  // Get current detected color
+        sorting1.setPosition(suzani[servoIndex]);
+        telemetry.addData("Intake ready", intakeReady);
+
+        intake1.setDirection(DcMotor.Direction.REVERSE);
+        if (ballColor.equals("Unknown")) {
+            intake1.setPower(intakeSpeed);
+            lastBallColor = "Unknown";
+        } else if (intakeReady) {
+            intake1.setPower(0);
+//            if (lastBallColor.equals("Unknown")) {
+            intakeReady = false;
+            ballColor = checkColor();
+            lastBallColor = ballColor;
+            // Store color in current slot
+            slotColors[servoIndex] = ballColor;
+            new Thread(() -> {
+                sleep(10);
+                if (servoIndex < 2) {
+                    servoIndex++;
+                    sorting1.setPosition(suzani[servoIndex]);
+                }
+                sleep(1500);
+                intakeReady = true;
+            }).start();
+//            }
+        }
+
+    }
+
+    private void outtake() {
+        List<Double> servoSequence = new ArrayList<>();
+        boolean[] used = new boolean[slotColors.length];
+        for (String targetColor : pattern) {
+            for (int i = 0; i < slotColors.length; i++) {
+                if (!used[i] && slotColors[i].equalsIgnoreCase(targetColor)) {
+                    servoSequence.add(suzano[i]);  // add servo position corresponding to that slot
+                    used[i] = true;                // mark slot as used
+                    break;                         // move on to next pattern color
+                }
+            }
+        }
+
+//        also add unused slots in case color was mismatched
+        for (int i = 0; i < slotColors.length; i++) {
+            if (!used[i]) {
+                servoSequence.add(suzano[i]);
+                used[i] = true;
+            }
+        }
+
+        for (int i = 0; i < servoSequence.size(); i++) {
+            double servoPos = servoSequence.get(i);
+            sorting1.setPosition(servoPos);
+            sleep(1500);  // wait for servo to reach position
+            sorting2.setPosition(wackUp);
+            sleep(1000);
+            sorting2.setPosition(wackDown);
+            sleep(1000);
+        }
+        fwl.setVelocity(0);
+        fwr.setVelocity(0);
+        slotColors[0] = "Empty";
+        slotColors[1] = "Empty";
+        slotColors[2] = "Empty";
+    }
+
 
     private String checkColor() {
         double red = colorSensor.red();
         double green = colorSensor.green();
         double blue = colorSensor.blue();
         purpleBall = normalizeColor(purpleBall);
-        greenBall  = normalizeColor(greenBall);
+        greenBall = normalizeColor(greenBall);
+
+        telemetry.addData("Red", red);
+        telemetry.addData("Green", green);
+        telemetry.addData("Blue", blue);
 
         // Normalize input
         double sum = red + green + blue;
@@ -521,19 +401,16 @@ public class ATLimelightBotPose extends LinearOpMode {
 
         // Compare with *normalized* reference colors
         double purpleDistance = colorDistance(new double[]{red, green, blue}, purpleBall);
-        double greenDistance  = colorDistance(new double[]{red, green, blue}, greenBall);
+        double greenDistance = colorDistance(new double[]{red, green, blue}, greenBall);
 
         String detected = "Unknown";
-        double tolerance = 0.12;  // tuned for normalized distances
+        double tolerance = 0.06;  // tuned for normalized distances
 
         if (purpleDistance < greenDistance && purpleDistance < tolerance)
             detected = "Purple";
         else if (greenDistance < purpleDistance && greenDistance < tolerance)
             detected = "Green";
 
-        telemetry.addData("Norm Red", red);
-        telemetry.addData("Norm Green", green);
-        telemetry.addData("Norm Blue", blue);
         telemetry.addData("Detected", detected);
         return detected;
     }
@@ -541,13 +418,261 @@ public class ATLimelightBotPose extends LinearOpMode {
 
     private double[] normalizeColor(double[] rgb) {
         double sum = rgb[0] + rgb[1] + rgb[2];
-        return new double[]{ rgb[0]/sum, rgb[1]/sum, rgb[2]/sum };
+        return new double[]{rgb[0] / sum, rgb[1] / sum, rgb[2] / sum};
     }
 
     private double colorDistance(double[] c1, double[] c2) {
-        return Math.sqrt(Math.pow(c1[0]-c2[0],2) + Math.pow(c1[1]-c2[1],2) + Math.pow(c1[2]-c2[2],2));
+        return Math.sqrt(Math.pow(c1[0] - c2[0], 2) + Math.pow(c1[1] - c2[1], 2) + Math.pow(c1[2] - c2[2], 2));
+    }
+
+    private void checkPattern() {
+        limelight.pipelineSwitch(0);
+        LLResult result = limelight.getLatestResult();
+        if (result != null && result.isValid()) {
+            List<LLResultTypes.FiducialResult> fiducialResults = result.getFiducialResults();
+            int tagId = 0;
+            for (LLResultTypes.FiducialResult fr : fiducialResults) {
+                tagId = fr.getFiducialId();
+            }
+
+            if (tagId == 21) {
+                pattern[0] = "green";
+                pattern[1] = "purple";
+                pattern[2] = "purple";
+                needPattern = false;
+            } else if (tagId == 22) {
+                pattern[0] = "purple";
+                pattern[1] = "green";
+                pattern[2] = "purple";
+                needPattern = false;
+            } else if (tagId == 23) {
+                pattern[0] = "purple";
+                pattern[1] = "purple";
+                pattern[2] = "green";
+                needPattern = false;
+            }
+            telemetry.addData("AprilTag ID", tagId);
+            telemetry.addData("Pattern 0", pattern[0]);
+            telemetry.addData("Pattern 1", pattern[1]);
+            telemetry.addData("Pattern 2", pattern[2]);
+        } else {
+            telemetry.addLine("No valid AprilTag detected");
+        }
+    }
+
+    //    AUTOMATIC DRIVING CODE
+    private double smooth(double prev, double curr, double alpha) {
+        return prev * (1 - alpha) + curr * alpha;
+    }
+
+    private void driveToOrigin(double targX, double targY, double targYaw) {
+        // Update odometry
+        odo.update();
+        Pose2D pos = odo.getPosition();
+        double currYawOdo = pos.getHeading(AngleUnit.RADIANS);
+        fwl.setVelocity(fwSpeed);
+        fwr.setVelocity(fwSpeed);
+
+        // ---- Limelight ----
+// ---- Limelight ----
+        LLResult result = limelight.getLatestResult();
+        if (!result.isValid() || result.getBotposeTagCount() == 0) {
+            telemetry.addLine("Bad LL frame, ignoring");
+            return;
+        }
+
+        Pose3D botpose = result.getBotpose();
+        double camX  = botpose.getPosition().x;
+        double camY  = botpose.getPosition().y;
+        // now call correction (camYaw is in radians)
+        Pose2D corrected = correctForCameraOffset(
+                camX,
+                camY,
+                llServoPos,
+                currYawOdo
+        );
+        // corrected robot pose from LL
+        double currX = corrected.getX(DistanceUnit.METER);
+        double currY = corrected.getY(DistanceUnit.METER);
+        double currYaw = currYawOdo;
+
+        // ---- First frame filter init ----
+        if (firstFrame) {
+            filtX = currX;
+            filtY = currY;
+            filtYaw = currYaw;
+            firstFrame = false;
+        }
+
+        // ---- LPF ----
+        double alpha = 0.25;
+        filtX = smooth(filtX, currX, alpha);
+        filtY = smooth(filtY, currY, alpha);
+        filtYaw = smooth(filtYaw, currYaw, alpha);
+
+        // ---- Errors ----
+        double fieldErrorX = targX - filtX;
+        double fieldErrorY = targY - filtY;
+        double distance = Math.hypot(fieldErrorX, fieldErrorY);
+
+        double yawError = targYaw - filtYaw;
+        yawError = Math.atan2(Math.sin(yawError), Math.cos(yawError));
+
+        // ---- Gains ----
+        double kP_drive = 1.0;
+        double kP_turn = 0.4;
+
+        // ---- Convert field → robot ----
+        double robotErrorX =  fieldErrorX * Math.cos(-filtYaw)
+                - fieldErrorY * Math.sin(-filtYaw);
+        double robotErrorY =  fieldErrorX * Math.sin(-filtYaw)
+                + fieldErrorY * Math.cos(-filtYaw);
+
+        double targetAxial   = robotErrorX * kP_drive;
+        double targetLateral = -robotErrorY * kP_drive;
+        double targetYaw     = yawError * kP_turn;
+
+        // ---- Slow-down zone ----
+        double slowdownDist = 1;
+        if (distance < slowdownDist) {
+            double scale = Math.max(distance / slowdownDist, 0.15);
+            targetAxial   *= scale;
+            targetLateral *= scale;
+            targetYaw     *= scale;
+        }
+
+        // ---- Overcome friction ----
+        double minPower = 0.07;
+        if (Math.abs(targetAxial) < minPower && Math.abs(targetAxial) > 0)
+            targetAxial = Math.copySign(minPower, targetAxial);
+
+        if (Math.abs(targetLateral) < minPower && Math.abs(targetLateral) > 0)
+            targetLateral = Math.copySign(minPower, targetLateral);
+
+        if (Math.abs(targetYaw) < minPower && Math.abs(targetYaw) > 0)
+            targetYaw = Math.copySign(minPower, targetYaw);
+
+        // ---- Mecanum mixing ----
+        double fl = targetAxial + targetLateral + targetYaw;
+        double fr = targetAxial - targetLateral - targetYaw;
+        double bl = targetAxial - targetLateral + targetYaw;
+        double br = targetAxial + targetLateral - targetYaw;
+
+        // ---- Normalize ----
+        double max = Math.max(Math.max(Math.abs(fl), Math.abs(fr)),
+                Math.max(Math.abs(bl), Math.abs(br)));
+        if (max > 1.0) {
+            fl /= max;
+            fr /= max;
+            bl /= max;
+            br /= max;
+        }
+
+        // ---- Stop if at target ----
+        double posTol = 0.2;        // meters
+        double yawTol = Math.toRadians(2);
+
+        if (distance < posTol && Math.abs(yawError) < yawTol) {
+            fL.setPower(0);
+            fR.setPower(0);
+            bL.setPower(0);
+            bR.setPower(0);
+            telemetry.addLine("Reached target");
+            return;
+        }
+
+        // ---- Apply ----
+        fL.setPower(fl);
+        fR.setPower(fr);
+        bL.setPower(bl);
+        bR.setPower(br);
+
+        telemetry.addData("Filtered X", filtX);
+        telemetry.addData("Filtered Y", filtY);
+        telemetry.addData("Distance", distance);
+        telemetry.addData("Yaw Error", Math.toDegrees(yawError));
     }
 
 
+    private Pose2D correctForCameraOffset(
+            double camX,
+            double camY,
+            double servoPos,
+            double robotYaw         // from odometry
+    ) {
+        double servoAngle = servoPosToAngle(servoPos);
+
+        // Camera world yaw = robot yaw + servo rotation
+        double cameraWorldYaw = robotYaw + servoAngle;
+
+        // Camera offset from robot center:
+        double dx = CAMERA_OFFSET_X;
+        double dy = CAMERA_OFFSET_Y;
+
+        // Rotate offset into world space
+        double fieldDX = dx * Math.cos(cameraWorldYaw) - dy * Math.sin(cameraWorldYaw);
+        double fieldDY = dx * Math.sin(cameraWorldYaw) + dy * Math.cos(cameraWorldYaw);
+
+        // Convert camera position -> robot center
+        double robotX = camX - fieldDX;
+        double robotY = camY - fieldDY;
+
+        return new Pose2D(
+                DistanceUnit.METER,
+                robotX,
+                robotY,
+                AngleUnit.RADIANS,
+                robotYaw     // keep robot yaw consistent
+        );
+    }
+
+    private double servoPosToAngle(double pos) {
+        double spanPos = SERVO_MAX_POS - SERVO_MIN_POS;
+        double offsetPos = pos-SERVO_CENTER_POS;
+
+        // Convert offset in 0-1 range to angle
+        double normalized = offsetPos / spanPos;
+
+        return normalized * SERVO_TOTAL_ANGLE;
+    }
+
+    private void printCurrentRobotPose() {
+        // Update odometry
+        odo.update();
+        Pose2D pos = odo.getPosition();
+        double robotYaw = pos.getHeading(AngleUnit.RADIANS);
+
+        // Get limelight frame
+        LLResult result = limelight.getLatestResult();
+
+        if (!result.isValid() || result.getBotposeTagCount() == 0) {
+            telemetry.addLine("LL: No valid tag");
+            telemetry.addData("Odo X", pos.getX(DistanceUnit.METER));
+            telemetry.addData("Odo Y", pos.getY(DistanceUnit.METER));
+            telemetry.addData("Odo Yaw", Math.toDegrees(robotYaw));
+            return;
+        }
+
+        Pose3D botpose = result.getBotpose();
+        double camX  = botpose.getPosition().x;
+        double camY  = botpose.getPosition().y;
+        double camYaw = botpose.getOrientation().getYaw(AngleUnit.RADIANS);
+
+        // Correct camera offset (servo angle included)
+        Pose2D corrected = correctForCameraOffset(
+                camX,
+                camY,
+                llServoPos,
+                robotYaw
+        );
+
+        double trueX = corrected.getX(DistanceUnit.METER);
+        double trueY = corrected.getY(DistanceUnit.METER);
+
+        telemetry.addLine("Robot Position:");
+        telemetry.addData("X (m)", trueX);
+        telemetry.addData("Y (m)", trueY);
+        telemetry.addData("Yaw (deg)", Math.toDegrees(robotYaw));
+    }
 
 }
