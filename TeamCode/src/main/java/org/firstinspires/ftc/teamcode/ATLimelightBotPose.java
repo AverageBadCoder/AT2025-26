@@ -89,9 +89,7 @@ public class ATLimelightBotPose extends LinearOpMode {
     private boolean needPattern = true;
 
     //    manual booleans
-    private boolean flywheelOn = false;
     private boolean aWasPressed = false;
-    private boolean xWasPressed = false;
     ElapsedTime llTimer = new ElapsedTime();
 
     @Override//
@@ -149,6 +147,7 @@ public class ATLimelightBotPose extends LinearOpMode {
             if (needPattern) {
                 checkPattern();
                 driveMecanum();
+                sorting1.setPosition(suzani[servoIndex]);
                 limelightmount.setPosition(SERVO_CENTER_POS);
             } else {
                 limelight.pipelineSwitch(1);
@@ -156,9 +155,11 @@ public class ATLimelightBotPose extends LinearOpMode {
                 adjustLl(result);
                 logBotPose(result);
                 if (gamepad1.a && result != null && result.isValid()) {
+                    fwl.setVelocity(fwSpeed);
+                    fwr.setVelocity(fwSpeed);
                     driveToOrigin(blueX, blueY, blueYaw);
-                } else if (gamepad1.x){
-                    driveToOrigin(0, 0, 0);
+                } else if (gamepad1.b){
+                    driveToOrigin(blueInX, blueInY, blueInYaw);
                 } else {
                     driveMecanum();
                 }
@@ -174,37 +175,38 @@ public class ATLimelightBotPose extends LinearOpMode {
             else {
                 intake1.setPower(0);
             }
-            if (gamepad1.b) {
+            if (gamepad1.x) {
                 outtake();
             }
 
 //            MANUAL OUTTAKING
+            if (gamepad2.b) {
+                servoIndex = 0;
+            }
             if (gamepad2.a && !aWasPressed) {
+                slotColors[0] = "Purple";
+                slotColors[1] = "Purple";
+                slotColors[2] = "Green";
                 aWasPressed = true;
-                servoIndex++;
                 if (servoIndex > 2) servoIndex = 0;
                 sorting1.setPosition(suzani[servoIndex]);
+                servoIndex++;
             }
             if (!gamepad2.a) aWasPressed = false;
 // --- Wack Up/Down ---
-            if (gamepad2.b) {
+            if (gamepad2.y) {
                 sorting2.setPosition(wackUp);
-            } else if (gamepad2.y) {
+            } else if (gamepad2.x){
                 sorting2.setPosition(wackDown);
             }
 // --- Flywheel Toggle (GP2.X) ---
-            if (gamepad2.x && !xWasPressed) {
-                xWasPressed = true;
-                flywheelOn = !flywheelOn;
-                if (flywheelOn) {
-                    fwl.setVelocity(fwSpeed);
-                    fwr.setVelocity(fwSpeed);
-                } else {
-                    fwl.setVelocity(0);
-                    fwr.setVelocity(0);
-                }
+            if (gamepad2.left_trigger > 0.1) {
+                fwl.setVelocity(fwSpeed);
+                fwr.setVelocity(fwSpeed);
+            } else if (gamepad2.right_trigger > 0.1){
+                fwl.setVelocity(0);
+                fwr.setVelocity(0);
             }
-            if (!gamepad2.x) xWasPressed = false;
 
 
             telemetry.addData("Slot 1", slotColors[0]);
@@ -225,16 +227,16 @@ public class ATLimelightBotPose extends LinearOpMode {
         double yaw = -gamepad1.right_stick_x;
 
         if (gamepad1.dpad_up) {
-            axial = -0.2;
+            axial = -dpadSpeed;
         }
         if (gamepad1.dpad_down) {
-            axial = 0.2;
+            axial = dpadSpeed;
         }
         if (gamepad1.dpad_right) {
-            lateral = -0.2;
+            lateral = -dpadSpeed;
         }
         if (gamepad1.dpad_left) {
-            lateral = 0.2;
+            lateral = dpadSpeed;
         }
 
         double frontLeftPower = axial + lateral + yaw;
@@ -265,9 +267,9 @@ public class ATLimelightBotPose extends LinearOpMode {
 
         if (result != null && result.isValid()) {
             double tx = result.getTx(); // horizontal offset (deg)
-            double tolerance = 5;
+            double tolerance = 2;
             if (Math.abs(tx) < tolerance){
-                double kP = 0.001;          // proportional gain (tune this)
+                double kP = 0.0012;          // proportional gain (tune this)
                 double step = kP * tx;
                 llServoPos += step;
                 llServoPos = Range.clip(llServoPos, llServoMin, llServoMax);
@@ -372,6 +374,7 @@ public class ATLimelightBotPose extends LinearOpMode {
             sorting2.setPosition(wackDown);
             sleep(1000);
         }
+        servoIndex=0;
         fwl.setVelocity(0);
         fwr.setVelocity(0);
         slotColors[0] = "Empty";
@@ -414,7 +417,6 @@ public class ATLimelightBotPose extends LinearOpMode {
         telemetry.addData("Detected", detected);
         return detected;
     }
-
 
     private double[] normalizeColor(double[] rgb) {
         double sum = rgb[0] + rgb[1] + rgb[2];
@@ -470,8 +472,6 @@ public class ATLimelightBotPose extends LinearOpMode {
         odo.update();
         Pose2D pos = odo.getPosition();
         double currYawOdo = pos.getHeading(AngleUnit.RADIANS);
-        fwl.setVelocity(fwSpeed);
-        fwr.setVelocity(fwSpeed);
 
         // ---- Limelight ----
 // ---- Limelight ----
