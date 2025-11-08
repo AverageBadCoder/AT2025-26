@@ -176,7 +176,10 @@ public class ATLimelightBotPose extends LinearOpMode {
                 intake1.setPower(0);
             }
             if (gamepad1.x) {
-                outtake();
+//                take away thread if doesn't work
+                new Thread(()->{
+                    outtake();
+                }).start();
             }
 
 //            MANUAL OUTTAKING
@@ -237,6 +240,13 @@ public class ATLimelightBotPose extends LinearOpMode {
         }
         if (gamepad1.dpad_left) {
             lateral = dpadSpeed;
+        }
+
+        if (gamepad1.left_bumper){
+            yaw = 0.3;
+        }
+        if (gamepad1.right_bumper){
+            yaw = -0.3;
         }
 
         double frontLeftPower = axial + lateral + yaw;
