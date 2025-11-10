@@ -168,25 +168,24 @@ public class ATLimelightBotPose extends LinearOpMode {
                 printCurrentRobotPose();
             }
 
-            if (gamepad1.left_trigger > 0.1) {
+            if ((gamepad1.x || gamepad2.x) && !xWasPressed) {
+                xWasPressed = true;
+                new Thread(()->{
+                    outtake();
+                }).start();
+            }
+            if (!gamepad1.x && !gamepad2.x) xWasPressed = false;
+
+//            GAMEPAD 2
+            if (gamepad2.left_trigger > 0.1) {
                 intake();
-            } else if (gamepad1.right_trigger > 0.1) {
+            } else if (gamepad2.right_trigger > 0.1) {
                 intake1.setDirection(DcMotor.Direction.FORWARD);
                 intake1.setPower(intakeSpeed);
             }
             else {
                 intake1.setPower(0);
             }
-            if (gamepad1.x && !xWasPressed) {
-//                take away thread if doesn't work
-                xWasPressed = true;
-                new Thread(()->{
-                    outtake();
-                }).start();
-            }
-            if (!gamepad1.x) xWasPressed = false;
-
-//            MANUAL OUTTAKING
             if (gamepad2.b) {
                 servoIndex = 0;
             }
