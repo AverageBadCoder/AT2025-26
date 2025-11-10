@@ -171,27 +171,27 @@ public class BlueAuto extends LinearOpMode {
 
         while (opModeIsActive() && runtime.seconds()<28.5){
             if (needPattern) {
-//                checkPattern();
+                checkPattern();
                 sorting1.setPosition(suzani[servoIndex]);
                 limelightmount.setPosition(SERVO_CENTER_POS);
-                needPattern = false; // COMMENT OUT ONCE CHECK PATTERN IS ON
             } else {
                 if (!firstShoot) {
-//                    fwOn();
-                    move(blueX, blueY, 0);
-//                    rotateToHeading(blueShootYaw);
-//                    outtake();
-//                    rotateToHeading(0);
-//                    move(blueIntake1X, blueIntakeY, 0);
-//                    rotateToHeading(blueIntakeYaw);
-//                    off();
+                    fwOn();
+                    move(blueShootX, blueShootY, 0);
+                    sleep(500);
+                    rotateToHeading(blueShootYaw);
+                    outtake();
+                    rotateToHeading(0);
+                    move(blueIntake1X, blueIntakeY, 0);
+                    rotateToHeading(blueIntakeYaw);
+                    off();
                     firstShoot = true;
-                } if (!firstIntake){
-//                    intakeMacro();
-//                    rotateToHeading(0);
-//                    move(blueX, blueY, 0);
-//                    rotateToHeading(blueShootYaw);
-//                    outtake();
+                } else if (!firstIntake){
+                    intakeMacro();
+                    rotateToHeading(0);
+                    move(blueX, blueY, 0);
+                    rotateToHeading(blueShootYaw);
+                    outtake();
                     firstIntake = true;
                 }
                 off();
@@ -213,14 +213,15 @@ public class BlueAuto extends LinearOpMode {
     }
 
     private void move(double targetX, double targetY, double targetYaw) {
-        double posTol = 2;
+        double posTol = 0.5;
 
         while (opModeIsActive()) {
+            telemetry.addLine("Moving");
             odo.update();
             Pose2D pos = odo.getPosition();
 
-            double currX = pos.getX(DistanceUnit.INCH);
-            double currY = pos.getY(DistanceUnit.INCH);
+            double currY = pos.getX(DistanceUnit.INCH);
+            double currX = pos.getY(DistanceUnit.INCH);
             double currYaw = pos.getHeading(AngleUnit.RADIANS);
 
             // Error in field space
@@ -229,9 +230,13 @@ public class BlueAuto extends LinearOpMode {
 
             // Distance to target
             double distance = Math.hypot(dx, dy);
-
+            telemetry.addData("currx", currX);
+            telemetry.addData("curry", currY);
+            telemetry.addData("dx", dx);
+            telemetry.addData("dy", dy);
+            telemetry.addData("distance", distance);
             // Stop if close enough
-            if (distance < posTol) {
+            if (Math.abs(distance) < posTol) {
                 axial = 0;
                 lateral = 0;
                 yaw = 0;
@@ -243,9 +248,10 @@ public class BlueAuto extends LinearOpMode {
             }
 
             // Proportional velocity control
-            double slowdownScale = Math.min(distance / 8.0, 1.0);
+            double slowdownScale = Math.min(distance / 1.0, 1.0);
             double axialVel   = -dx*slowdownScale*AutoFast;
             double lateralVel = dy*slowdownScale*AutoFast;
+//            lateralVel = 0;
 //            x + forward
 //            y + left
             // Feed to robot motion system
@@ -262,32 +268,30 @@ public class BlueAuto extends LinearOpMode {
             max = Math.max(max, Math.abs(bl));
             max = Math.max(max, Math.abs(br));
             if (max > AutoFast) {
-                fl /= max;
-                fr /= max;
-                bl /= max;
-                br /= max;
+                double scale = AutoFast / max;
+                fl *= scale;
+                fr *= scale;
+                bl *= scale;
+                br *= scale;
             }
 
             fL.setVelocity(fl);
             fR.setVelocity(fr);
             bL.setVelocity(bl);
             bR.setVelocity(br);
-            telemetry.addData("currx", currX);
-            telemetry.addData("curry", currY);
-            telemetry.addData("dx", dx);
-            telemetry.addData("dy", dy);
             telemetry.addData("Distance", distance);
             telemetry.addData("axial vel", axial);
             telemetry.addData("lat vel", lateral);
+            telemetry.addData("fl", fl);
             telemetry.update();
         }
     }
 
     private void rotateToHeading(double targetHeadingDeg) {
 
-        double yawTol = Math.toRadians(4);   // stop within 2 degrees
-        double maxYawVel = 300;              // adjust to your motor units
-        double kP_yaw = 2.0;                 // main tuning param
+        double yawTol = Math.toRadians(2);
+        double maxYawVel = 250;
+        double kP_yaw = 2.0;
 
         double targetHeading = Math.toRadians(targetHeadingDeg);
 
@@ -296,7 +300,6 @@ public class BlueAuto extends LinearOpMode {
             odo.update();
             Pose2D pos = odo.getPosition();
             double currYaw = pos.getHeading(AngleUnit.RADIANS);
-
             // Compute error
             double yawError = targetHeading - currYaw;
             yawError = Math.atan2(Math.sin(yawError), Math.cos(yawError));
@@ -306,6 +309,7 @@ public class BlueAuto extends LinearOpMode {
             telemetry.addData("YawErrorDeg", Math.toDegrees(yawError));
 
             // Stop if close enough
+//            yawError = targetHeading - currYaw;
             if (Math.abs(yawError) < yawTol) {
                 fL.setVelocity(0);
                 fR.setVelocity(0);
@@ -314,17 +318,14 @@ public class BlueAuto extends LinearOpMode {
                 telemetry.addLine("Rotation complete");
                 return;
             }
-
             // Proportional yaw velocity
-            double yawVel = -yawError * kP_yaw*maxYawVel;
+            double yawVel = yawError * kP_yaw*maxYawVel;
             yawVel = Range.clip(yawVel, -maxYawVel, maxYawVel);
-
             // Apply to mecanum (zero translation)
             double fl =  yawVel;
             double fr = -yawVel;
             double bl =  yawVel;
             double br = -yawVel;
-
             fL.setVelocity(fl);
             fR.setVelocity(fr);
             bL.setVelocity(bl);

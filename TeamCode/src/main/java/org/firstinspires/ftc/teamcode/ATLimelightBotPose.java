@@ -90,6 +90,8 @@ public class ATLimelightBotPose extends LinearOpMode {
 
     //    manual booleans
     private boolean aWasPressed = false;
+    private boolean yWasPressed = false;
+    private boolean xWasPressed = false;
     ElapsedTime llTimer = new ElapsedTime();
 
     @Override//
@@ -147,7 +149,7 @@ public class ATLimelightBotPose extends LinearOpMode {
             if (needPattern) {
                 checkPattern();
                 driveMecanum();
-                sorting1.setPosition(suzani[servoIndex]);
+//                sorting1.setPosition(suzani[servoIndex]);
                 limelightmount.setPosition(SERVO_CENTER_POS);
             } else {
                 limelight.pipelineSwitch(1);
@@ -175,12 +177,14 @@ public class ATLimelightBotPose extends LinearOpMode {
             else {
                 intake1.setPower(0);
             }
-            if (gamepad1.x) {
+            if (gamepad1.x && !xWasPressed) {
 //                take away thread if doesn't work
+                xWasPressed = true;
                 new Thread(()->{
                     outtake();
                 }).start();
             }
+            if (!gamepad1.x) xWasPressed = false;
 
 //            MANUAL OUTTAKING
             if (gamepad2.b) {
@@ -196,10 +200,18 @@ public class ATLimelightBotPose extends LinearOpMode {
                 servoIndex++;
             }
             if (!gamepad2.a) aWasPressed = false;
+
+            if (gamepad2.y && !yWasPressed) {
+                yWasPressed = true;
+                if (servoIndex > 2) servoIndex = 0;
+                sorting1.setPosition(suzano[servoIndex]);
+                servoIndex++;
+            }
+            if (!gamepad2.y) yWasPressed = false;
 // --- Wack Up/Down ---
-            if (gamepad2.y) {
+            if (gamepad2.dpad_up) {
                 sorting2.setPosition(wackUp);
-            } else if (gamepad2.x){
+            } else if (gamepad2.dpad_down){
                 sorting2.setPosition(wackDown);
             }
 // --- Flywheel Toggle (GP2.X) ---
@@ -324,6 +336,8 @@ public class ATLimelightBotPose extends LinearOpMode {
     }
 
     private void intake() {
+//        if (isOuttaking) return;   // Freeze intake control during outtake
+
         String ballColor = checkColor();  // Get current detected color
         sorting1.setPosition(suzani[servoIndex]);
         telemetry.addData("Intake ready", intakeReady);
@@ -366,7 +380,6 @@ public class ATLimelightBotPose extends LinearOpMode {
                 }
             }
         }
-
 //        also add unused slots in case color was mismatched
         for (int i = 0; i < slotColors.length; i++) {
             if (!used[i]) {

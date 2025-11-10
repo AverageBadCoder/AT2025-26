@@ -30,9 +30,10 @@ public class CONSTANTS {
 
 //    Limelight offsets
 // Camera offset relative to robot CENTER, in meters
-    static final double CAMERA_OFFSET_X = -0.02; // forward (+), backward (-)
-    static final double CAMERA_OFFSET_Y = 0.165; // left (+), right (-)
+    static final double CAMERA_OFFSET_X = -0.026; // forward (+), backward (-)
+    static final double CAMERA_OFFSET_Y = 0.163; // left (+), right (-)
     // Servo angle limits → convert servo position to angle
+
     static final double SERVO_CENTER_POS = 0.47;  // Forward = 0 rad
     static final double SERVO_MIN_POS = 0.15;
     static final double SERVO_MAX_POS = 0.80;
@@ -44,9 +45,9 @@ public class CONSTANTS {
     static final double AutoSlow = 100;
     static final double AutoFast = 500;
     static final double blueShootX = 5;
-    static final double blueShootY = 0;
-    static final double blueShootYaw = -70;
-    static final double blueIntake1X = 30;
-    static final double blueIntakeY = 16;
+    static final double blueShootY = 2;
+    static final double blueShootYaw = -75;
+    static final double blueIntake1X = 25;
+    static final double blueIntakeY = 15;
     static final double blueIntakeYaw = 90;
 }
