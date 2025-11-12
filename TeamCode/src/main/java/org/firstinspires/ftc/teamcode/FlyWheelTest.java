@@ -29,6 +29,7 @@
 
 package org.firstinspires.ftc.teamcode;
 
+import com.qualcomm.hardware.gobilda.GoBildaPinpointDriver;
 import com.qualcomm.robotcore.eventloop.opmode.Disabled;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
@@ -46,6 +47,8 @@ import com.qualcomm.hardware.limelightvision.Limelight3A;
 import com.qualcomm.robotcore.eventloop.opmode.Disabled;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
+
+import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
 import org.firstinspires.ftc.robotcore.external.navigation.Pose3D;
 
 import java.util.List;
@@ -78,7 +81,7 @@ import java.util.List;
  * Remove or comment out the @Disabled line to add this OpMode to the Driver Station OpMode list
  */
 @TeleOp(name="FlyWheelTest", group="Linear OpMode")
-@Disabled
+//@Disabled
 public class FlyWheelTest extends LinearOpMode {
     private DcMotorEx fwl = null;
     private DcMotorEx fwr = null;
@@ -92,6 +95,7 @@ public class FlyWheelTest extends LinearOpMode {
 
     @Override
     public void runOpMode() {
+
         fwl = hardwareMap.get(DcMotorEx.class, "fwl");
         fwr = hardwareMap.get(DcMotorEx.class, "fwr");
 

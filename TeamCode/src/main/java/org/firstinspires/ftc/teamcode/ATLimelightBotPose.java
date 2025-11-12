@@ -92,14 +92,15 @@ public class ATLimelightBotPose extends LinearOpMode {
     private boolean aWasPressed = false;
     private boolean yWasPressed = false;
     private boolean xWasPressed = false;
+    private double lastPos = suzani[servoIndex];;
     ElapsedTime llTimer = new ElapsedTime();
 
     @Override//
     public void runOpMode() {
         odo = hardwareMap.get(GoBildaPinpointDriver.class, "odo");
-        odo.setOffsets(-65.0, -145.5, DistanceUnit.MM); //these are tuned for 3110-0002-0001 Product Insight #1
+        odo.setOffsets(-175.0, 60, DistanceUnit.MM); //these are tuned for 3110-0002-0001 Product Insight #1
         odo.setEncoderResolution(GoBildaPinpointDriver.GoBildaOdometryPods.goBILDA_4_BAR_POD);
-        odo.setEncoderDirections(GoBildaPinpointDriver.EncoderDirection.FORWARD, GoBildaPinpointDriver.EncoderDirection.FORWARD);
+        odo.setEncoderDirections(GoBildaPinpointDriver.EncoderDirection.REVERSED, GoBildaPinpointDriver.EncoderDirection.REVERSED);
         odo.resetPosAndIMU();
 
         fL = hardwareMap.get(DcMotorEx.class, "fL");
@@ -137,6 +138,9 @@ public class ATLimelightBotPose extends LinearOpMode {
         for (DcMotor m : new DcMotor[]{fL, fR, bL, bR}) {
             m.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
         }
+        fwl.setVelocity(0);
+        fwr.setVelocity(0);
+        sorting2.setPosition(wackDown);
 
 
         telemetry.addData("Status", "Initialized");
@@ -146,10 +150,13 @@ public class ATLimelightBotPose extends LinearOpMode {
         runtime.reset();
 
         while (opModeIsActive()) {
+            fwl.setVelocity(fwSpeed);
+            fwr.setVelocity(fwSpeed);
             if (needPattern) {
+                limelight.pipelineSwitch(0);
                 checkPattern();
                 driveMecanum();
-//                sorting1.setPosition(suzani[servoIndex]);
+                sorting2.setPosition(wackDown);
                 limelightmount.setPosition(SERVO_CENTER_POS);
             } else {
                 limelight.pipelineSwitch(1);
@@ -157,8 +164,8 @@ public class ATLimelightBotPose extends LinearOpMode {
                 adjustLl(result);
                 logBotPose(result);
                 if (gamepad1.a && result != null && result.isValid()) {
-                    fwl.setVelocity(fwSpeed);
-                    fwr.setVelocity(fwSpeed);
+//                    fwl.setVelocity(fwSpeed);
+//                    fwr.setVelocity(fwSpeed);
                     driveToOrigin(blueX, blueY, blueYaw);
                 } else if (gamepad1.b){
                     driveToOrigin(blueInX, blueInY, blueInYaw);
@@ -188,23 +195,27 @@ public class ATLimelightBotPose extends LinearOpMode {
             }
             if (gamepad2.b) {
                 servoIndex = 0;
+                sorting1.setPosition(suzani[servoIndex]);
+                lastPos = suzani[servoIndex];
             }
             if (gamepad2.a && !aWasPressed) {
                 slotColors[0] = "Purple";
                 slotColors[1] = "Purple";
                 slotColors[2] = "Green";
                 aWasPressed = true;
+                servoIndex++;
                 if (servoIndex > 2) servoIndex = 0;
                 sorting1.setPosition(suzani[servoIndex]);
-                servoIndex++;
+                lastPos = suzani[servoIndex];
             }
             if (!gamepad2.a) aWasPressed = false;
 
             if (gamepad2.y && !yWasPressed) {
                 yWasPressed = true;
+                servoIndex++;
                 if (servoIndex > 2) servoIndex = 0;
                 sorting1.setPosition(suzano[servoIndex]);
-                servoIndex++;
+                lastPos = suzano[servoIndex];
             }
             if (!gamepad2.y) yWasPressed = false;
 // --- Wack Up/Down ---
@@ -213,16 +224,12 @@ public class ATLimelightBotPose extends LinearOpMode {
             } else if (gamepad2.dpad_down){
                 sorting2.setPosition(wackDown);
             }
-// --- Flywheel Toggle (GP2.X) ---
-            if (gamepad2.left_trigger > 0.1) {
-                fwl.setVelocity(fwSpeed);
-                fwr.setVelocity(fwSpeed);
-            } else if (gamepad2.right_trigger > 0.1){
-                fwl.setVelocity(0);
-                fwr.setVelocity(0);
-            }
 
+            odo.update();
+            Pose2D pos = odo.getPosition();
 
+            double currX = pos.getX(DistanceUnit.INCH);
+            double currY = pos.getY(DistanceUnit.INCH);
             telemetry.addData("Slot 1", slotColors[0]);
             telemetry.addData("Slot 2", slotColors[1]);
             telemetry.addData("Slot 3", slotColors[2]);
@@ -232,6 +239,8 @@ public class ATLimelightBotPose extends LinearOpMode {
             telemetry.addData("Pattern 0", pattern[0]);
             telemetry.addData("Pattern 1", pattern[1]);
             telemetry.addData("Pattern 2", pattern[2]);
+            telemetry.addData("currx", currX);
+            telemetry.addData("curry", currY);
             telemetry.update();
         }
     }
@@ -339,6 +348,7 @@ public class ATLimelightBotPose extends LinearOpMode {
 
         String ballColor = checkColor();  // Get current detected color
         sorting1.setPosition(suzani[servoIndex]);
+        lastPos = suzani[servoIndex];
         telemetry.addData("Intake ready", intakeReady);
 
         intake1.setDirection(DcMotor.Direction.REVERSE);
@@ -358,6 +368,7 @@ public class ATLimelightBotPose extends LinearOpMode {
                 if (servoIndex < 2) {
                     servoIndex++;
                     sorting1.setPosition(suzani[servoIndex]);
+                    lastPos = suzani[servoIndex];
                 }
                 sleep(1500);
                 intakeReady = true;
@@ -368,6 +379,7 @@ public class ATLimelightBotPose extends LinearOpMode {
     }
 
     private void outtake() {
+        sorting2.setPosition(wackDown);
         List<Double> servoSequence = new ArrayList<>();
         boolean[] used = new boolean[slotColors.length];
         for (String targetColor : pattern) {
@@ -390,18 +402,24 @@ public class ATLimelightBotPose extends LinearOpMode {
         for (int i = 0; i < servoSequence.size(); i++) {
             double servoPos = servoSequence.get(i);
             sorting1.setPosition(servoPos);
-            sleep(1500);  // wait for servo to reach position
+            if (Math.abs(lastPos -servoPos) > 0.4){
+                sleep(2500);
+            } else {
+                sleep(1400);
+            }
             sorting2.setPosition(wackUp);
             sleep(1000);
             sorting2.setPosition(wackDown);
             sleep(1000);
+            lastPos = servoPos;
         }
         servoIndex=0;
-        fwl.setVelocity(0);
-        fwr.setVelocity(0);
+//        fwl.setVelocity(0);
+//        fwr.setVelocity(0);
         slotColors[0] = "Empty";
         slotColors[1] = "Empty";
         slotColors[2] = "Empty";
+        sorting2.setPosition(wackDown);
     }
 
 
@@ -542,7 +560,7 @@ public class ATLimelightBotPose extends LinearOpMode {
 
         // ---- Gains ----
         double kP_drive = 1.0;
-        double kP_turn = 0.4;
+        double kP_turn = 0.7;
 
         // ---- Convert field → robot ----
         double robotErrorX =  fieldErrorX * Math.cos(-filtYaw)
@@ -557,7 +575,7 @@ public class ATLimelightBotPose extends LinearOpMode {
         // ---- Slow-down zone ----
         double slowdownDist = 1;
         if (distance < slowdownDist) {
-            double scale = Math.max(distance / slowdownDist, 0.15);
+            double scale = Math.max(distance / slowdownDist, 0.35);
             targetAxial   *= scale;
             targetLateral *= scale;
             targetYaw     *= scale;
@@ -591,8 +609,8 @@ public class ATLimelightBotPose extends LinearOpMode {
         }
 
         // ---- Stop if at target ----
-        double posTol = 0.2;        // meters
-        double yawTol = Math.toRadians(2);
+        double posTol = 0.05;        // meters
+        double yawTol = Math.toRadians(1);
 
         if (distance < posTol && Math.abs(yawError) < yawTol) {
             fL.setPower(0);
