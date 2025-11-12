@@ -110,6 +110,7 @@ public class BlueAuto extends LinearOpMode {
     private boolean firstShoot = false;
     private boolean firstIntake = false;
     private boolean needPattern = true;
+    private boolean intakeDone = false;
     private double lastPos = suzani[servoIndex];
     ElapsedTime llTimer = new ElapsedTime();
 
@@ -191,12 +192,12 @@ public class BlueAuto extends LinearOpMode {
                     lastPos = suzano[servoIndex];
                     move(blueShootX, blueShootY, 0);
                     rotateToHeading(blueShootYaw);
-                    sleep(500);
+                    sleep(2500);
                     outtake();
-                    rotateToHeading(0);
-                    move(blueIntake1X, blueIntakeY, 0);
-                    rotateToHeading(blueIntakeYaw);
-//                    moveAndRotate(blueIntake1X, blueIntakeY, blueIntakeYaw);
+//                    rotateToHeading(0);
+//                    move(blueIntake1X, blueIntakeY, 0);
+//                    rotateToHeading(blueIntakeYaw);
+                    moveAndRotate(blueIntake1X, blueIntakeY, blueIntakeYaw);
                     off();
                     firstShoot = true;
                 } else if (!firstIntake){
@@ -342,82 +343,80 @@ public class BlueAuto extends LinearOpMode {
     }
 
     private void moveAndRotate(double targetX, double targetY, double targetYawDeg) {
-        double kP_yaw = 4;
         double targetYaw = Math.toRadians(targetYawDeg);
-
         while (opModeIsActive()) {
-
+            // --- Update odometry ---
             odo.update();
             Pose2D pos = odo.getPosition();
 
-            double currY = pos.getX(DistanceUnit.INCH);
-            double currX = pos.getY(DistanceUnit.INCH);
+            double currX = pos.getX(DistanceUnit.INCH);
+            double currY = pos.getY(DistanceUnit.INCH);
             double currYaw = pos.getHeading(AngleUnit.RADIANS);
 
-            // POSITION ERROR
+            // --- Compute position error in field space ---
             double dx = targetX - currX;
             double dy = targetY - currY;
-
             double distance = Math.hypot(dx, dy);
 
-            // ORIENTATION ERROR (wrapped)
+            // --- Compute yaw error (normalized to [-π, π]) ---
             double yawError = targetYaw - currYaw;
             yawError = Math.atan2(Math.sin(yawError), Math.cos(yawError));
 
-            telemetry.addData("currX", currX);
-            telemetry.addData("currY", currY);
-            telemetry.addData("dx", dx);
-            telemetry.addData("dy", dy);
-            telemetry.addData("distance", distance);
-            telemetry.addData("yawErrorDeg", Math.toDegrees(yawError));
-
-            // STOP IF BOTH POSITION + ROTATION ARE DONE
-            if (distance < posTol && Math.abs(yawError) < yawTol) {
+            // --- Stop condition ---
+            if (Math.abs(distance) < posTol && Math.abs(yawError) < yawTol) {
                 fL.setVelocity(0);
                 fR.setVelocity(0);
                 bL.setVelocity(0);
                 bR.setVelocity(0);
-                telemetry.addLine("MoveAndRotate Complete");
+                telemetry.addLine("Move and rotation complete");
+                telemetry.update();
                 break;
             }
 
-            double slowdownScale = Math.min(distance / 4.0, 1.0);
-            double robotDX =  dx * Math.cos(-currYaw) - dy * Math.sin(-currYaw);
-            double robotDY =  dx * Math.sin(-currYaw) + dy * Math.cos(-currYaw);
+            // --- Convert field-relative error into robot-relative frame ---
+            // Rotate the field-space dx, dy into robot coordinates based on current yaw
+            double robotDX = dx * Math.cos(-currYaw) - dy * Math.sin(-currYaw);
+            double robotDY = dx * Math.sin(-currYaw) + dy * Math.cos(-currYaw);
 
-            double axialVel   = -robotDX * slowdownScale * AutoFast;   // forward/back
-            double lateralVel =  robotDY * slowdownScale * AutoFast;   // left/right
+            // --- Proportional translation control ---
+            double slowdownScale = Math.min(distance / 5.0, 1.0);
+            double axialVel = -robotDX * slowdownScale * AutoFast;
+            double lateralVel = robotDY * slowdownScale * AutoFast;
 
-            // ROTATIONAL SPEED
-            double yawVel = yawError * kP_yaw * AutoTurnFast;
-            yawVel = Range.clip(yawVel, -AutoTurnFast, AutoTurnFast);
+            // --- Proportional yaw control with velocity range ---
+            double errorMag = Math.abs(yawError);
+            double slowZone = Math.toRadians(20);
+            double t = Math.min(errorMag / slowZone, 1.0); // 1 when far, 0 near
+            double yawSpeed = AutoTurnSlow + (AutoTurnFast - AutoTurnSlow) * t;
+            double yawVel = Math.copySign(yawSpeed, yawError);
 
-            // MIX INTO MECANUM
-            double fl =  axialVel + lateralVel + yawVel;
-            double fr =  axialVel - lateralVel - yawVel;
-            double bl =  axialVel - lateralVel + yawVel;
-            double br =  axialVel + lateralVel - yawVel;
+            // --- Combine movement ---
+            double fl = axialVel + lateralVel + yawVel;
+            double fr = axialVel - lateralVel - yawVel;
+            double bl = axialVel - lateralVel + yawVel;
+            double br = axialVel + lateralVel - yawVel;
 
-            // SCALE WHEEL VELOCITY TO AUTOfast
-            double max = Math.max(
-                    Math.max(Math.abs(fl), Math.abs(fr)),
-                    Math.max(Math.abs(bl), Math.abs(br))
-            );
-
-            if (max > AutoFast) {
-                double scale = AutoFast / max;
+            // --- Normalize motor velocities ---
+            double max = Math.max(Math.max(Math.abs(fl), Math.abs(fr)), Math.max(Math.abs(bl), Math.abs(br)));
+            double maxAllowed = (distance > 5) ? AutoFast : AutoSlow;
+            if (max > maxAllowed) {
+                double scale = maxAllowed / max;
                 fl *= scale;
                 fr *= scale;
                 bl *= scale;
                 br *= scale;
             }
 
-            // APPLY VELOCITIES
+            // --- Apply velocities ---
             fL.setVelocity(fl);
             fR.setVelocity(fr);
             bL.setVelocity(bl);
             bR.setVelocity(br);
 
+            // --- Telemetry ---
+            telemetry.addData("currX", currX);
+            telemetry.addData("currY", currY);
+            telemetry.addData("currYaw", Math.toDegrees(currYaw));
             telemetry.update();
         }
     }
@@ -480,16 +479,16 @@ public class BlueAuto extends LinearOpMode {
         for (int i = 0; i < servoSequence.size(); i++) {
             double servoPos = servoSequence.get(i);
             sorting1.setPosition(servoPos);
-            if (Math.abs(lastPos -servoPos) > 0.4){
-                sleep(1800);
+            if (Math.abs(lastPos - servoPos) > 0.4) {
+                sleep(1600);
             } else {
                 sleep(1200);
             }
-            lastPos = servoPos;
             sorting2.setPosition(wackUp);
-            sleep(800);
+            sleep(400);
             sorting2.setPosition(wackDown);
-            sleep(800);
+            sleep(140);
+            lastPos = servoPos;
         }
         servoIndex=0;
         slotColors[0] = "Empty";
@@ -501,9 +500,11 @@ public class BlueAuto extends LinearOpMode {
         lateral=0;
         yaw=0;
         servoIndex = 0;
+        intakeDone = false;
         new Thread(()->{
-            while (servoIndex < 3){
+            while (!intakeDone){
                 intake();
+                telemetry.addLine("INTAKING");
             }
         }).start();
 
@@ -521,9 +522,8 @@ public class BlueAuto extends LinearOpMode {
 
         axial = -AutoSlow;
         dumbMove();
-        sleep(1800);
+        sleep(1200);
         off();
-        sleep(1000);
     }
 
     private void dumbMove(){
@@ -570,8 +570,10 @@ public class BlueAuto extends LinearOpMode {
                 if (servoIndex < 2) {
                     servoIndex++;
                     sorting1.setPosition(suzani[servoIndex]);
-                    lastPos = suzani[servoIndex];
+                } else {
+                    intakeDone = true;
                 }
+                lastPos = suzani[servoIndex];
                 sleep(1000);
                 intakeReady = true;
             }).start();
@@ -623,8 +625,8 @@ public class BlueAuto extends LinearOpMode {
     }
 
     private void fwOn(){
-        fwl.setVelocity(fwSpeed);
-        fwr.setVelocity(fwSpeed);
+        fwl.setVelocity(autoFwSpeed);
+        fwr.setVelocity(autoFwSpeed);
     }
 
     private void fwOff(){

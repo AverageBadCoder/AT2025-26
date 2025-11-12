@@ -3,7 +3,8 @@ public class CONSTANTS {
 
 //check commit!
 
-    static final double fwSpeed = 1080;
+    static final double fwSpeed = 1090;
+    static final double autoFwSpeed = 1080;
     static final double intakeSpeed = 0.9;
     static final double dpadSpeed = 0.36;
     static final double wackUp = 0.48;
@@ -14,7 +15,7 @@ public class CONSTANTS {
     static final double[] suzani = {0.19, 0.56, 0.93};
 
 //    static final double[] suzano = {0.67, 1, 0.3};
-    static final double[] suzano = {0.76, 0.02, 0.38};
+    static final double[] suzano = {0.75, 0.01, 0.38};
 
     //    0.74  0.36  0
 //    0.16  0.53  0.91
@@ -42,16 +43,16 @@ public class CONSTANTS {
     static final double SERVO_TOTAL_ANGLE = Math.toRadians(260);
 
 //    AUTO
-    static final double AutoSlow = 400;
+    static final double AutoSlow = 500;
     static final double AutoFast = 1200;
-    static final double AutoTurnSlow = 250;
+    static final double AutoTurnSlow = 600;
     static final double AutoTurnFast = 1000;
     static final double posTol = 1;
     static final double yawTol = Math.toRadians(1);
     static final double blueShootX = 6;
     static final double blueShootY = 2;
     static final double blueShootYaw = -65;
-    static final double blueIntake1X = 28;
+    static final double blueIntake1X = 29;
     static final double blueIntakeY = 8;
     static final double blueIntakeYaw = 90;
 }

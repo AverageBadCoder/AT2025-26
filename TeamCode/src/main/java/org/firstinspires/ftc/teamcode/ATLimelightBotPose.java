@@ -87,6 +87,8 @@ public class ATLimelightBotPose extends LinearOpMode {
     private boolean sweepingForward = true;
     private boolean intakeReady = true;
     private boolean needPattern = true;
+    private boolean outtaking = false;
+    private boolean wackSet = false;
 
     //    manual booleans
     private boolean aWasPressed = false;
@@ -140,8 +142,6 @@ public class ATLimelightBotPose extends LinearOpMode {
         }
         fwl.setVelocity(0);
         fwr.setVelocity(0);
-        sorting2.setPosition(wackDown);
-
 
         telemetry.addData("Status", "Initialized");
         telemetry.update();
@@ -150,13 +150,18 @@ public class ATLimelightBotPose extends LinearOpMode {
         runtime.reset();
 
         while (opModeIsActive()) {
-            fwl.setVelocity(fwSpeed);
-            fwr.setVelocity(fwSpeed);
+//            fwl.setVelocity(fwSpeed);
+//            fwr.setVelocity(fwSpeed);
+            if (!wackSet){
+                wackSet = true;
+                sorting1.setPosition(suzano[0]);
+                lastPos = suzano[0];
+                sorting2.setPosition(wackDown);
+            }
             if (needPattern) {
                 limelight.pipelineSwitch(0);
                 checkPattern();
                 driveMecanum();
-                sorting2.setPosition(wackDown);
                 limelightmount.setPosition(SERVO_CENTER_POS);
             } else {
                 limelight.pipelineSwitch(1);
@@ -178,10 +183,30 @@ public class ATLimelightBotPose extends LinearOpMode {
             if ((gamepad1.x || gamepad2.x) && !xWasPressed) {
                 xWasPressed = true;
                 new Thread(()->{
-                    outtake();
+//                    String[] outPattern = {"purple", "purple", "green"};
+                    outtake(pattern);
                 }).start();
             }
             if (!gamepad1.x && !gamepad2.x) xWasPressed = false;
+            if (gamepad2.y) {
+                new Thread(()->{
+                    String[] outPattern = {"purple", "purple", "green"};
+                    outtake(outPattern);
+                }).start();
+            }
+            if (gamepad2.b) {
+                new Thread(()->{
+                    String[] outPattern = {"purple", "green", "purple"};
+                    outtake(outPattern);
+                }).start();
+            }
+            if (gamepad2.a) {
+                new Thread(()->{
+                    String[] outPattern = {"green", "purple", "purple"};
+                    outtake(outPattern);
+                }).start();
+            }
+
 
 //            GAMEPAD 2
             if (gamepad2.left_trigger > 0.1) {
@@ -193,12 +218,12 @@ public class ATLimelightBotPose extends LinearOpMode {
             else {
                 intake1.setPower(0);
             }
-            if (gamepad2.b) {
+            if (gamepad2.left_bumper) {
                 servoIndex = 0;
                 sorting1.setPosition(suzani[servoIndex]);
                 lastPos = suzani[servoIndex];
             }
-            if (gamepad2.a && !aWasPressed) {
+            if (gamepad2.right_bumper && !aWasPressed) {
                 slotColors[0] = "Purple";
                 slotColors[1] = "Purple";
                 slotColors[2] = "Green";
@@ -208,16 +233,16 @@ public class ATLimelightBotPose extends LinearOpMode {
                 sorting1.setPosition(suzani[servoIndex]);
                 lastPos = suzani[servoIndex];
             }
-            if (!gamepad2.a) aWasPressed = false;
+            if (!gamepad2.right_bumper) aWasPressed = false;
 
-            if (gamepad2.y && !yWasPressed) {
+            if (gamepad2.dpad_right && !yWasPressed) {
                 yWasPressed = true;
                 servoIndex++;
                 if (servoIndex > 2) servoIndex = 0;
                 sorting1.setPosition(suzano[servoIndex]);
                 lastPos = suzano[servoIndex];
             }
-            if (!gamepad2.y) yWasPressed = false;
+            if (!gamepad2.dpad_right) yWasPressed = false;
 // --- Wack Up/Down ---
             if (gamepad2.dpad_up) {
                 sorting2.setPosition(wackUp);
@@ -344,8 +369,6 @@ public class ATLimelightBotPose extends LinearOpMode {
     }
 
     private void intake() {
-//        if (isOuttaking) return;   // Freeze intake control during outtake
-
         String ballColor = checkColor();  // Get current detected color
         sorting1.setPosition(suzani[servoIndex]);
         lastPos = suzani[servoIndex];
@@ -368,9 +391,9 @@ public class ATLimelightBotPose extends LinearOpMode {
                 if (servoIndex < 2) {
                     servoIndex++;
                     sorting1.setPosition(suzani[servoIndex]);
-                    lastPos = suzani[servoIndex];
                 }
-                sleep(1500);
+                lastPos = suzani[servoIndex];
+                sleep(1100);
                 intakeReady = true;
             }).start();
 //            }
@@ -378,48 +401,50 @@ public class ATLimelightBotPose extends LinearOpMode {
 
     }
 
-    private void outtake() {
-        sorting2.setPosition(wackDown);
-        List<Double> servoSequence = new ArrayList<>();
-        boolean[] used = new boolean[slotColors.length];
-        for (String targetColor : pattern) {
-            for (int i = 0; i < slotColors.length; i++) {
-                if (!used[i] && slotColors[i].equalsIgnoreCase(targetColor)) {
-                    servoSequence.add(suzano[i]);  // add servo position corresponding to that slot
-                    used[i] = true;                // mark slot as used
-                    break;                         // move on to next pattern color
+    private void outtake(String[] outPattern) {
+        if (!outtaking) {
+            outtaking = true;
+            sorting2.setPosition(wackDown);
+            List<Double> servoSequence = new ArrayList<>();
+            boolean[] used = new boolean[slotColors.length];
+            for (String targetColor : outPattern) {
+                for (int i = 0; i < slotColors.length; i++) {
+                    if (!used[i] && slotColors[i].equalsIgnoreCase(targetColor)) {
+                        servoSequence.add(suzano[i]);  // add servo position corresponding to that slot
+                        used[i] = true;                // mark slot as used
+                        break;                         // move on to next pattern color
+                    }
                 }
             }
-        }
-//        also add unused slots in case color was mismatched
-        for (int i = 0; i < slotColors.length; i++) {
-            if (!used[i]) {
-                servoSequence.add(suzano[i]);
-                used[i] = true;
+            //        also add unused slots in case color was mismatched
+            for (int i = 0; i < slotColors.length; i++) {
+                if (!used[i]) {
+                    servoSequence.add(suzano[i]);
+                    used[i] = true;
+                }
             }
-        }
 
-        for (int i = 0; i < servoSequence.size(); i++) {
-            double servoPos = servoSequence.get(i);
-            sorting1.setPosition(servoPos);
-            if (Math.abs(lastPos -servoPos) > 0.4){
-                sleep(2500);
-            } else {
-                sleep(1400);
+            for (int i = 0; i < servoSequence.size(); i++) {
+                double servoPos = servoSequence.get(i);
+                sorting1.setPosition(servoPos);
+                if (Math.abs(lastPos - servoPos) > 0.4) {
+                    sleep(1400);
+                } else {
+                    sleep(800);
+                }
+                sorting2.setPosition(wackUp);
+                sleep(400);
+                sorting2.setPosition(wackDown);
+                sleep(140);
+                lastPos = servoPos;
             }
-            sorting2.setPosition(wackUp);
-            sleep(1000);
+            servoIndex = 0;
+            slotColors[0] = "Empty";
+            slotColors[1] = "Empty";
+            slotColors[2] = "Empty";
             sorting2.setPosition(wackDown);
-            sleep(1000);
-            lastPos = servoPos;
+            outtaking = false;
         }
-        servoIndex=0;
-//        fwl.setVelocity(0);
-//        fwr.setVelocity(0);
-        slotColors[0] = "Empty";
-        slotColors[1] = "Empty";
-        slotColors[2] = "Empty";
-        sorting2.setPosition(wackDown);
     }
 
 
@@ -575,7 +600,7 @@ public class ATLimelightBotPose extends LinearOpMode {
         // ---- Slow-down zone ----
         double slowdownDist = 1;
         if (distance < slowdownDist) {
-            double scale = Math.max(distance / slowdownDist, 0.35);
+            double scale = Math.max(distance / slowdownDist, 0.5);
             targetAxial   *= scale;
             targetLateral *= scale;
             targetYaw     *= scale;
@@ -610,7 +635,6 @@ public class ATLimelightBotPose extends LinearOpMode {
 
         // ---- Stop if at target ----
         double posTol = 0.05;        // meters
-        double yawTol = Math.toRadians(1);
 
         if (distance < posTol && Math.abs(yawError) < yawTol) {
             fL.setPower(0);
@@ -632,8 +656,6 @@ public class ATLimelightBotPose extends LinearOpMode {
         telemetry.addData("Distance", distance);
         telemetry.addData("Yaw Error", Math.toDegrees(yawError));
     }
-
-
     private Pose2D correctForCameraOffset(
             double camX,
             double camY,
