@@ -37,6 +37,7 @@ import static org.firstinspires.ftc.teamcode.CONSTANTS.*;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
+import com.qualcomm.robotcore.hardware.PIDFCoefficients;
 import com.qualcomm.robotcore.hardware.Servo;
 import com.qualcomm.robotcore.util.ElapsedTime;
 import static org.firstinspires.ftc.teamcode.CONSTANTS.*;
@@ -136,6 +137,22 @@ public class FlyWheelTest extends LinearOpMode {
             // Apply velocities
             fwl.setVelocity(fwlSpeed);
             fwr.setVelocity(fwrSpeed);
+            PIDFCoefficients coeffs = fwl.getPIDFCoefficients(DcMotor.RunMode.RUN_USING_ENCODER);
+            telemetry.addData("kP", coeffs.p);
+            telemetry.addData("kI", coeffs.i);
+            telemetry.addData("kD", coeffs.d);
+            telemetry.addData("kF", coeffs.f);
+
+//            fwl.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+//            fwr.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+//            double kP = 0.0006;
+//            double kF = 0.0001;
+//            double currVelo = (fwl.getVelocity() + fwr.getVelocity()) / 2.0;
+//            double error = autoFwSpeed - currVelo;
+//            double output = Math.max(kP * error + kF * autoFwSpeed, 0.3);
+//            fwl.setPower(output);
+//            fwr.setPower(output);
+
 
             if (gamepad1.x) {
                 sorting2.setPosition(wackDown);//three postions are .82, .44, .07

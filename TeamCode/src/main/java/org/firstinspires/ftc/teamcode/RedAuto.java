@@ -78,9 +78,9 @@ import java.util.Locale;
  * Remove or comment out the @Disabled line to add this OpMode to the Driver Station OpMode list
  */
 
-@Autonomous(name="Blue Auto", group="Robot")
+@Autonomous(name="Red Auto", group="Robot")
 //@Disabled
-public class BlueAuto extends LinearOpMode {
+public class RedAuto extends LinearOpMode {
     GoBildaPinpointDriver odo;
     private ElapsedTime runtime = new ElapsedTime();
     private DcMotorEx fL = null;
@@ -190,17 +190,17 @@ public class BlueAuto extends LinearOpMode {
                     sorting2.setPosition(wackDown);
                     sorting1.setPosition(suzano[servoIndex]);
                     lastPos = suzano[servoIndex];
-                    move(blueShootX, blueShootY, 0);
-                    rotateToHeading(blueShootYaw);
+                    move(redShootX, redShootY, 0);
+                    rotateToHeading(redShootYaw);
                     sleep(6000);
                     outtake();
-                    moveAndRotate(blueIntake1X, blueIntakeY, blueIntakeYaw);
+                    moveAndRotate(redIntake1X, redIntakeY, redIntakeYaw);
                     off();
                     firstShoot = true;
                 } else if (!firstIntake){
                     intakeMacro();
                     intakeDone = true;
-                    moveAndRotate(blueShootX, blueShootY, blueShootYaw2);
+                    moveAndRotate(redShootX, redShootY, redShootYaw2);
                     outtake();
                     rotateToHeading(0);
                     firstIntake = true;

@@ -22,12 +22,20 @@ public class CONSTANTS {
     static final double searchSpeed = 0.02;
     static double[] purpleBall = {145, 175, 250, 190};
     static double[] greenBall = {55, 142, 113, 103};
+//    BLUE
     static final double blueX = 1.0;
     static final double blueY = -0.5;
-    static final double blueYaw = Math.toRadians(-69);
+    static final double blueYaw = Math.toRadians(-72);
     static final double blueInX = 1.5;
     static final double blueInY = -1.5;
     static final double blueInYaw = Math.toRadians(90);
+//    RED
+    static final double redX = 1.0;
+    static final double redY = -0.5;
+    static final double redYaw = Math.toRadians(-115);
+    static final double redInX = 1.5;
+    static final double redInY = -1.5;
+    static final double redInYaw = Math.toRadians(90);
 
 //    Limelight offsets
 // Camera offset relative to robot CENTER, in meters
@@ -43,16 +51,26 @@ public class CONSTANTS {
     static final double SERVO_TOTAL_ANGLE = Math.toRadians(260);
 
 //    AUTO
-    static final double AutoSlow = 500;
+    static final double AutoSlow = 600;
     static final double AutoFast = 1200;
-    static final double AutoTurnSlow = 600;
+    static final double AutoTurnSlow = 400;
     static final double AutoTurnFast = 1000;
     static final double posTol = 1;
-    static final double yawTol = Math.toRadians(1);
+    static final double yawTol = Math.toRadians(0.5);
+//    BLUE
     static final double blueShootX = 6;
     static final double blueShootY = 2;
-    static final double blueShootYaw = -65;
-    static final double blueIntake1X = 29;
-    static final double blueIntakeY = 8;
+    static final double blueShootYaw = -66;
+    static final double blueShootYaw2 = -70;
+    static final double blueIntake1X = 26;
+    static final double blueIntakeY = 12;
     static final double blueIntakeYaw = 90;
+//    RED
+    static final double redShootX = 6;
+    static final double redShootY = -2;
+    static final double redShootYaw = -110;
+    static final double redShootYaw2 = -115;
+    static final double redIntake1X = 26;
+    static final double redIntakeY = -12;
+    static final double redIntakeYaw = -90;
 }

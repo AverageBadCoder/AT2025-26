@@ -30,25 +30,17 @@
 package org.firstinspires.ftc.teamcode;
 
 import com.qualcomm.hardware.gobilda.GoBildaPinpointDriver;
-import com.qualcomm.robotcore.eventloop.opmode.Disabled;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import static org.firstinspires.ftc.teamcode.CONSTANTS.*;
-import com.qualcomm.hardware.rev.RevColorSensorV3;
 
-import com.qualcomm.robotcore.hardware.CRServo;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
-import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.Servo;
 import com.qualcomm.robotcore.util.ElapsedTime;
 import com.qualcomm.hardware.limelightvision.LLResult;
 import com.qualcomm.hardware.limelightvision.LLResultTypes;
-import com.qualcomm.hardware.limelightvision.LLStatus;
 import com.qualcomm.hardware.limelightvision.Limelight3A;
-import com.qualcomm.robotcore.eventloop.opmode.Disabled;
-import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
-import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 
 import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
 import org.firstinspires.ftc.robotcore.external.navigation.Pose3D;
@@ -59,10 +51,9 @@ import com.qualcomm.robotcore.util.Range;
 import java.util.ArrayList;
 import java.util.List;
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
-import org.firstinspires.ftc.robotcore.external.navigation.YawPitchRollAngles;
 
-@TeleOp(name="AT Tele-Op", group="Linear OpMode")
-public class ATLimelightBotPose extends LinearOpMode {
+@TeleOp(name="Red Tele-Op", group="Linear OpMode")
+public class RedTeleop extends LinearOpMode {
     GoBildaPinpointDriver odo;
     private ElapsedTime runtime = new ElapsedTime();
     private DcMotor fL = null;
@@ -150,8 +141,8 @@ public class ATLimelightBotPose extends LinearOpMode {
         runtime.reset();
 
         while (opModeIsActive()) {
-//            fwl.setVelocity(fwSpeed);
-//            fwr.setVelocity(fwSpeed);
+            fwl.setVelocity(fwSpeed);
+            fwr.setVelocity(fwSpeed);
             if (!wackSet){
                 wackSet = true;
                 sorting1.setPosition(suzano[0]);
@@ -169,9 +160,7 @@ public class ATLimelightBotPose extends LinearOpMode {
                 adjustLl(result);
                 logBotPose(result);
                 if (gamepad1.a && result != null && result.isValid()) {
-//                    fwl.setVelocity(fwSpeed);
-//                    fwr.setVelocity(fwSpeed);
-                    driveToOrigin(blueX, blueY, blueYaw);
+                    driveToOrigin(redX, redY, redYaw);
                 } else if (gamepad1.b){
                     driveToOrigin(blueInX, blueInY, blueInYaw);
                 } else {
@@ -180,10 +169,12 @@ public class ATLimelightBotPose extends LinearOpMode {
                 printCurrentRobotPose();
             }
 
+            if (gamepad1.y){
+                odo.resetPosAndIMU();
+            }
             if ((gamepad1.x || gamepad2.x) && !xWasPressed) {
                 xWasPressed = true;
                 new Thread(()->{
-//                    String[] outPattern = {"purple", "purple", "green"};
                     outtake(pattern);
                 }).start();
             }
@@ -242,10 +233,17 @@ public class ATLimelightBotPose extends LinearOpMode {
                 sorting1.setPosition(suzano[servoIndex]);
                 lastPos = suzano[servoIndex];
             }
+            if (gamepad2.dpad_left){
+                outtaking = false;
+            }
             if (!gamepad2.dpad_right) yWasPressed = false;
 // --- Wack Up/Down ---
             if (gamepad2.dpad_up) {
                 sorting2.setPosition(wackUp);
+                new Thread(()->{
+                    sleep(400);
+                    sorting2.setPosition(wackDown);
+                }).start();
             } else if (gamepad2.dpad_down){
                 sorting2.setPosition(wackDown);
             }
@@ -425,24 +423,31 @@ public class ATLimelightBotPose extends LinearOpMode {
             }
 
             for (int i = 0; i < servoSequence.size(); i++) {
-                double servoPos = servoSequence.get(i);
-                sorting1.setPosition(servoPos);
-                if (Math.abs(lastPos - servoPos) > 0.4) {
-                    sleep(1400);
-                } else {
-                    sleep(800);
+                if (outtaking){
+                    double servoPos = servoSequence.get(i);
+                    sorting1.setPosition(servoPos);
+                    if (Math.abs(lastPos - servoPos) > 0.4) {
+                        sleep(1400);
+                    } else {
+                        sleep(800);
+                    }
+                    if (outtaking){
+                        sorting2.setPosition(wackUp);
+                        sleep(400);
+                    }
+                    sorting2.setPosition(wackDown);
+                    sleep(140);
+                    lastPos = servoPos;
                 }
-                sorting2.setPosition(wackUp);
-                sleep(400);
-                sorting2.setPosition(wackDown);
-                sleep(140);
-                lastPos = servoPos;
             }
             servoIndex = 0;
             slotColors[0] = "Empty";
             slotColors[1] = "Empty";
             slotColors[2] = "Empty";
             sorting2.setPosition(wackDown);
+            sleep(140);
+            sorting1.setPosition(suzani[servoIndex]);
+            lastPos = suzani[servoIndex];
             outtaking = false;
         }
     }
@@ -540,45 +545,45 @@ public class ATLimelightBotPose extends LinearOpMode {
 
         // ---- Limelight ----
 // ---- Limelight ----
-        LLResult result = limelight.getLatestResult();
-        if (!result.isValid() || result.getBotposeTagCount() == 0) {
-            telemetry.addLine("Bad LL frame, ignoring");
-            return;
-        }
-
-        Pose3D botpose = result.getBotpose();
-        double camX  = botpose.getPosition().x;
-        double camY  = botpose.getPosition().y;
-        // now call correction (camYaw is in radians)
-        Pose2D corrected = correctForCameraOffset(
-                camX,
-                camY,
-                llServoPos,
-                currYawOdo
-        );
-        // corrected robot pose from LL
-        double currX = corrected.getX(DistanceUnit.METER);
-        double currY = corrected.getY(DistanceUnit.METER);
+//        LLResult result = limelight.getLatestResult();
+//        if (!result.isValid() || result.getBotposeTagCount() == 0) {
+//            telemetry.addLine("Bad LL frame, ignoring");
+//            return;
+//        }
+//
+//        Pose3D botpose = result.getBotpose();
+//        double camX  = botpose.getPosition().x;
+//        double camY  = botpose.getPosition().y;
+//        // now call correction (camYaw is in radians)
+//        Pose2D corrected = correctForCameraOffset(
+//                camX,
+//                camY,
+//                llServoPos,
+//                currYawOdo
+//        );
+//        // corrected robot pose from LL
+//        double currX = corrected.getX(DistanceUnit.METER);
+//        double currY = corrected.getY(DistanceUnit.METER);
         double currYaw = currYawOdo;
 
         // ---- First frame filter init ----
-        if (firstFrame) {
-            filtX = currX;
-            filtY = currY;
-            filtYaw = currYaw;
-            firstFrame = false;
-        }
+//        if (firstFrame) {
+//            filtX = currX;
+//            filtY = currY;
+//            filtYaw = currYaw;
+//            firstFrame = false;
+//        }
 
         // ---- LPF ----
         double alpha = 0.25;
-        filtX = smooth(filtX, currX, alpha);
-        filtY = smooth(filtY, currY, alpha);
+//        filtX = smooth(filtX, currX, alpha);
+//        filtY = smooth(filtY, currY, alpha);
         filtYaw = smooth(filtYaw, currYaw, alpha);
 
         // ---- Errors ----
-        double fieldErrorX = targX - filtX;
-        double fieldErrorY = targY - filtY;
-        double distance = Math.hypot(fieldErrorX, fieldErrorY);
+//        double fieldErrorX = targX - filtX;
+//        double fieldErrorY = targY - filtY;
+//        double distance = Math.hypot(fieldErrorX, fieldErrorY);
 
         double yawError = targYaw - filtYaw;
         yawError = Math.atan2(Math.sin(yawError), Math.cos(yawError));
@@ -588,23 +593,25 @@ public class ATLimelightBotPose extends LinearOpMode {
         double kP_turn = 0.7;
 
         // ---- Convert field → robot ----
-        double robotErrorX =  fieldErrorX * Math.cos(-filtYaw)
-                - fieldErrorY * Math.sin(-filtYaw);
-        double robotErrorY =  fieldErrorX * Math.sin(-filtYaw)
-                + fieldErrorY * Math.cos(-filtYaw);
-
-        double targetAxial   = robotErrorX * kP_drive;
-        double targetLateral = -robotErrorY * kP_drive;
-        double targetYaw     = yawError * kP_turn;
+//        double robotErrorX =  fieldErrorX * Math.cos(-filtYaw)
+//                - fieldErrorY * Math.sin(-filtYaw);
+//        double robotErrorY =  fieldErrorX * Math.sin(-filtYaw)
+//                + fieldErrorY * Math.cos(-filtYaw);
+//
+//        double targetAxial   = robotErrorX * kP_drive;
+//        double targetLateral = -robotErrorY * kP_drive;
+        double targetYaw = yawError * kP_turn;
+        double targetAxial = 0;
+        double targetLateral = 0;
 
         // ---- Slow-down zone ----
-        double slowdownDist = 1;
-        if (distance < slowdownDist) {
-            double scale = Math.max(distance / slowdownDist, 0.5);
-            targetAxial   *= scale;
-            targetLateral *= scale;
-            targetYaw     *= scale;
-        }
+//        double slowdownDist = 1;
+//        if (distance < slowdownDist) {
+//            double scale = Math.max(distance / slowdownDist, 0.5);
+//            targetAxial   *= scale;
+//            targetLateral *= scale;
+//            targetYaw     *= scale;
+//        }
 
         // ---- Overcome friction ----
         double minPower = 0.07;
@@ -636,7 +643,7 @@ public class ATLimelightBotPose extends LinearOpMode {
         // ---- Stop if at target ----
         double posTol = 0.05;        // meters
 
-        if (distance < posTol && Math.abs(yawError) < yawTol) {
+        if (Math.abs(yawError) < yawTol) {
             fL.setPower(0);
             fR.setPower(0);
             bL.setPower(0);
@@ -651,9 +658,6 @@ public class ATLimelightBotPose extends LinearOpMode {
         bL.setPower(bl);
         bR.setPower(br);
 
-        telemetry.addData("Filtered X", filtX);
-        telemetry.addData("Filtered Y", filtY);
-        telemetry.addData("Distance", distance);
         telemetry.addData("Yaw Error", Math.toDegrees(yawError));
     }
     private Pose2D correctForCameraOffset(
