@@ -80,6 +80,7 @@ public class RedTeleop extends LinearOpMode {
     private boolean needPattern = true;
     private boolean outtaking = false;
     private boolean wackSet = false;
+    private boolean driverLock = false;
 
     //    manual booleans
     private boolean aWasPressed = false;
@@ -162,23 +163,30 @@ public class RedTeleop extends LinearOpMode {
                 if (gamepad1.a && result != null && result.isValid()) {
                     driveToOrigin(redX, redY, redYaw);
                 } else if (gamepad1.b){
-                    driveToOrigin(blueInX, blueInY, blueInYaw);
+                    driveToOrigin(redInX, redInY, redInYaw);
                 } else {
                     driveMecanum();
                 }
                 printCurrentRobotPose();
             }
 
+            if (gamepad1.left_trigger > 0.1){
+                driverLock = true;
+            }
+            if (gamepad1.right_trigger > 0.1){
+                driverLock = false;
+            }
+
             if (gamepad1.y){
                 odo.resetPosAndIMU();
             }
-            if ((gamepad1.x || gamepad2.x) && !xWasPressed) {
+            if (gamepad2.x && !xWasPressed) {
                 xWasPressed = true;
                 new Thread(()->{
                     outtake(pattern);
                 }).start();
             }
-            if (!gamepad1.x && !gamepad2.x) xWasPressed = false;
+            if (!gamepad2.x) xWasPressed = false;
             if (gamepad2.y) {
                 new Thread(()->{
                     String[] outPattern = {"purple", "purple", "green"};
@@ -233,10 +241,11 @@ public class RedTeleop extends LinearOpMode {
                 sorting1.setPosition(suzano[servoIndex]);
                 lastPos = suzano[servoIndex];
             }
+            if (!gamepad2.dpad_right) yWasPressed = false;
+
             if (gamepad2.dpad_left){
                 outtaking = false;
             }
-            if (!gamepad2.dpad_right) yWasPressed = false;
 // --- Wack Up/Down ---
             if (gamepad2.dpad_up) {
                 sorting2.setPosition(wackUp);
@@ -290,6 +299,18 @@ public class RedTeleop extends LinearOpMode {
         }
         if (gamepad1.right_bumper){
             yaw = -0.3;
+        }
+
+//        DRIVER LOCK
+        if (driverLock) {
+            odo.update();
+            double robotYaw = odo.getPosition().getHeading(AngleUnit.RADIANS);
+
+            double originalAxial = axial;     // forward/back
+            double originalLateral = lateral; // left/right
+
+            axial   =  originalAxial * Math.cos(robotYaw) - originalLateral * Math.sin(robotYaw);
+            lateral =  originalAxial * Math.sin(robotYaw) + originalLateral * Math.cos(robotYaw);
         }
 
         double frontLeftPower = axial + lateral + yaw;
@@ -427,9 +448,9 @@ public class RedTeleop extends LinearOpMode {
                     double servoPos = servoSequence.get(i);
                     sorting1.setPosition(servoPos);
                     if (Math.abs(lastPos - servoPos) > 0.4) {
-                        sleep(1400);
+                        sleep(1600);
                     } else {
-                        sleep(800);
+                        sleep(1200);
                     }
                     if (outtaking){
                         sorting2.setPosition(wackUp);

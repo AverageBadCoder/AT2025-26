@@ -106,6 +106,7 @@ public class RedAuto extends LinearOpMode {
     private double lateral = 0.0;
     private double yaw = 0.0;
 
+    private boolean firstMoves = false;
     private boolean intakeReady = true;
     private boolean firstShoot = false;
     private boolean firstIntake = false;
@@ -166,26 +167,33 @@ public class RedAuto extends LinearOpMode {
                 bR.getCurrentPosition());
         telemetry.update();
 
-        while (needPattern){
-            checkPattern();
-            telemetry.addData("Pattern 0", pattern[0]);
-            telemetry.addData("Pattern 1", pattern[1]);
-            telemetry.addData("Pattern 2", pattern[2]);
-            telemetry.update();
-        }
+//        while (needPattern){
+//            checkPattern();
+//            telemetry.addData("Pattern 0", pattern[0]);
+//            telemetry.addData("Pattern 1", pattern[1]);
+//            telemetry.addData("Pattern 2", pattern[2]);
+//            telemetry.update();
+//        }
 
         // Wait for the game to start (driver presses START)
         waitForStart();
         runtime.reset();
 
-        while (opModeIsActive() && runtime.seconds()<28.5){
+        while (opModeIsActive() && runtime.seconds()<29){
             fwOn();
             if (needPattern) {
                 checkPattern();
                 sorting1.setPosition(suzani[servoIndex]);
                 lastPos = suzani[servoIndex];
-                limelightmount.setPosition(SERVO_CENTER_POS);
+//                limelightmount.setPosition(SERVO_CENTER_POS);
+                firstMoves = true;
             } else {
+                if (!firstMoves){
+                    sorting1.setPosition(suzani[servoIndex]);
+                    lastPos = suzani[servoIndex];
+                    limelightmount.setPosition(SERVO_CENTER_POS);
+                    firstMoves = true;
+                }
                 if (!firstShoot) {
                     sorting2.setPosition(wackDown);
                     sorting1.setPosition(suzano[servoIndex]);
@@ -202,7 +210,7 @@ public class RedAuto extends LinearOpMode {
                     intakeDone = true;
                     moveAndRotate(redShootX, redShootY, redShootYaw2);
                     outtake();
-                    rotateToHeading(0);
+                    moveAndRotate(redLeaveX, redLeaveY, redLeaveYaw);
                     firstIntake = true;
                 }
                 off();
@@ -483,16 +491,20 @@ public class RedAuto extends LinearOpMode {
         for (int i = 0; i < servoSequence.size(); i++) {
             double servoPos = servoSequence.get(i);
             sorting1.setPosition(servoPos);
-            if (Math.abs(lastPos - servoPos) > 0.4) {
-                sleep(1600);
-            } else {
-                sleep(1200);
+            if (opModeIsActive() && runtime.seconds()<29) {
+                if (Math.abs(lastPos - servoPos) > 0.4) {
+                    sleep(2000);
+                } else {
+                    sleep(1200);
+                }
+                if (opModeIsActive() && runtime.seconds()<29) {
+                    sorting2.setPosition(wackUp);
+                    sleep(400);
+                    sorting2.setPosition(wackDown);
+                    sleep(140);
+                    lastPos = servoPos;
+                }
             }
-            sorting2.setPosition(wackUp);
-            sleep(400);
-            sorting2.setPosition(wackDown);
-            sleep(140);
-            lastPos = servoPos;
         }
         servoIndex=0;
         slotColors[0] = "Empty";

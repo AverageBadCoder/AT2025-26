@@ -80,6 +80,7 @@ public class BlueTeleop extends LinearOpMode {
     private boolean needPattern = true;
     private boolean outtaking = false;
     private boolean wackSet = false;
+    private boolean driverLock = false;
 
     //    manual booleans
     private boolean aWasPressed = false;
@@ -167,6 +168,13 @@ public class BlueTeleop extends LinearOpMode {
                     driveMecanum();
                 }
                 printCurrentRobotPose();
+            }
+
+            if (gamepad1.left_trigger > 0.1){
+                driverLock = true;
+            }
+            if (gamepad1.right_trigger > 0.1){
+                driverLock = false;
             }
 
             if (gamepad1.y){
@@ -291,6 +299,18 @@ public class BlueTeleop extends LinearOpMode {
         }
         if (gamepad1.right_bumper){
             yaw = -0.3;
+        }
+
+//        DRIVER LOCK
+        if (driverLock) {
+            odo.update();
+            double robotYaw = odo.getPosition().getHeading(AngleUnit.RADIANS);
+
+            double originalAxial = axial;     // forward/back
+            double originalLateral = lateral; // left/right
+
+            axial   =  originalAxial * Math.cos(robotYaw) - originalLateral * Math.sin(robotYaw);
+            lateral =  originalAxial * Math.sin(robotYaw) + originalLateral * Math.cos(robotYaw);
         }
 
         double frontLeftPower = axial + lateral + yaw;
