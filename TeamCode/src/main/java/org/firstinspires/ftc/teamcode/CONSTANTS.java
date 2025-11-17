@@ -4,7 +4,7 @@ public class CONSTANTS {
 //check commit!
 
     static final double fwSpeed = 1090;
-    static final double autoFwSpeed = 1080;
+    static final double autoFwSpeed = 1100;
     static final double intakeSpeed = 0.9;
     static final double dpadSpeed = 0.4;
     static final double wackUp = 0.48;
@@ -65,18 +65,18 @@ public class CONSTANTS {
     static final double blueIntake1X = 26;
     static final double blueIntakeY = 12;
     static final double blueIntakeYaw = 90;
-    static final double blueLeaveX = 10;
-    static final double blueLeaveY = 4;
+    static final double blueLeaveX = 15;
+    static final double blueLeaveY = 5;
     static final double blueLeaveYaw = 0;
 //    RED
     static final double redShootX = 6;
     static final double redShootY = -2;
-    static final double redShootYaw = -110;
+    static final double redShootYaw = -109;
     static final double redShootYaw2 = -115;
     static final double redIntake1X = 26;
     static final double redIntakeY = -12;
     static final double redIntakeYaw = -90;
-    static final double redLeaveX = 10;
+    static final double redLeaveX = 13;
     static final double redLeaveY = -4;
     static final double redLeaveYaw = 0;
 }

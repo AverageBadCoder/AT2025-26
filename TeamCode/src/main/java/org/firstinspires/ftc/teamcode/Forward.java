@@ -78,9 +78,9 @@ import java.util.Locale;
  * Remove or comment out the @Disabled line to add this OpMode to the Driver Station OpMode list
  */
 
-@Autonomous(name="Blue Auto", group="Robot")
+@Autonomous(name="FORWARD", group="Robot")
 //@Disabled
-public class BlueAuto extends LinearOpMode {
+public class Forward extends LinearOpMode {
     GoBildaPinpointDriver odo;
     private ElapsedTime runtime = new ElapsedTime();
     private DcMotorEx fL = null;
@@ -179,52 +179,9 @@ public class BlueAuto extends LinearOpMode {
         waitForStart();
         runtime.reset();
 
-        while (opModeIsActive() && runtime.seconds()<29){
-            if (!firstShoot){
-                fwOn();
-            }
-            if (needPattern) {
-                checkPattern();
-                sorting1.setPosition(suzani[servoIndex]);
-                lastPos = suzani[servoIndex];
-//                limelightmount.setPosition(SERVO_CENTER_POS);
-                firstMoves = true;
-            } else {
-                if (!firstMoves){
-                    sorting1.setPosition(suzani[servoIndex]);
-                    lastPos = suzani[servoIndex];
-                    limelightmount.setPosition(SERVO_CENTER_POS);
-                    firstMoves = true;
-                }
-                if (!firstShoot) {
-                    sorting2.setPosition(wackDown);
-                    sorting1.setPosition(suzano[servoIndex]);
-                    lastPos = suzano[servoIndex];
-                    move(blueShootX, blueShootY, 0);
-                    rotateToHeading(blueShootYaw);
-                    sleep(6000);
-                    outtake();
-                    moveAndRotate(blueLeaveX, blueLeaveY, blueLeaveYaw);
-//                    moveAndRotate(blueIntake1X, blueIntakeY, blueIntakeYaw);
-                    off();
-                    fwOff();
-                    firstShoot = true;
-                }
-//                } else if (!firstIntake){
-//                    intakeMacro();
-//                    intakeDone = true;
-//                    moveAndRotate(blueShootX, blueShootY, blueShootYaw2);
-//                    outtake();
-//                    moveAndRotate(blueLeaveX, blueLeaveY, blueLeaveYaw);
-//                    firstIntake = true;
-//                }
-                off();
-            }
-
-            telemetry.addData("Pattern 0", pattern[0]);
-            telemetry.addData("Pattern 1", pattern[1]);
-            telemetry.addData("Pattern 2", pattern[2]);
-            telemetry.update();
+        while (opModeIsActive() && runtime.seconds()<20){
+            axial = -500;
+            dumbMove();
         }
     }
 

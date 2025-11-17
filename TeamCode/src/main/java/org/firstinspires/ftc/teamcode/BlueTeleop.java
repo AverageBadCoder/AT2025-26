@@ -171,10 +171,9 @@ public class BlueTeleop extends LinearOpMode {
             }
 
             if (gamepad1.left_trigger > 0.1){
-                driverLock = true;
-            }
-            if (gamepad1.right_trigger > 0.1){
-                driverLock = false;
+                slotColors[0] = "Empty";
+                slotColors[1] = "Empty";
+                slotColors[2] = "Empty";
             }
 
             if (gamepad1.y){
@@ -448,7 +447,7 @@ public class BlueTeleop extends LinearOpMode {
                     double servoPos = servoSequence.get(i);
                     sorting1.setPosition(servoPos);
                     if (Math.abs(lastPos - servoPos) > 0.4) {
-                        sleep(1600);
+                        sleep(2000);
                     } else {
                         sleep(1200);
                     }
@@ -761,5 +760,4 @@ public class BlueTeleop extends LinearOpMode {
         telemetry.addData("Y (m)", trueY);
         telemetry.addData("Yaw (deg)", Math.toDegrees(robotYaw));
     }
-
 }

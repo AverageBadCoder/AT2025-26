@@ -180,7 +180,9 @@ public class RedAuto extends LinearOpMode {
         runtime.reset();
 
         while (opModeIsActive() && runtime.seconds()<29){
-            fwOn();
+            if (!firstShoot){
+                fwOn();
+            }
             if (needPattern) {
                 checkPattern();
                 sorting1.setPosition(suzani[servoIndex]);
@@ -202,17 +204,20 @@ public class RedAuto extends LinearOpMode {
                     rotateToHeading(redShootYaw);
                     sleep(6000);
                     outtake();
-                    moveAndRotate(redIntake1X, redIntakeY, redIntakeYaw);
-                    off();
-                    firstShoot = true;
-                } else if (!firstIntake){
-                    intakeMacro();
-                    intakeDone = true;
-                    moveAndRotate(redShootX, redShootY, redShootYaw2);
-                    outtake();
                     moveAndRotate(redLeaveX, redLeaveY, redLeaveYaw);
-                    firstIntake = true;
+//                    moveAndRotate(blueIntake1X, blueIntakeY, blueIntakeYaw);
+                    off();
+                    fwOff();
+                    firstShoot = true;
                 }
+//                } else if (!firstIntake){
+//                    intakeMacro();
+//                    intakeDone = true;
+//                    moveAndRotate(blueShootX, blueShootY, blueShootYaw2);
+//                    outtake();
+//                    moveAndRotate(blueLeaveX, blueLeaveY, blueLeaveYaw);
+//                    firstIntake = true;
+//                }
                 off();
             }
 
@@ -493,9 +498,9 @@ public class RedAuto extends LinearOpMode {
             sorting1.setPosition(servoPos);
             if (opModeIsActive() && runtime.seconds()<29) {
                 if (Math.abs(lastPos - servoPos) > 0.4) {
-                    sleep(2000);
+                    sleep(3000);
                 } else {
-                    sleep(1200);
+                    sleep(2500);
                 }
                 if (opModeIsActive() && runtime.seconds()<29) {
                     sorting2.setPosition(wackUp);

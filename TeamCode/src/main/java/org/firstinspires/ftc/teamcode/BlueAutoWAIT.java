@@ -78,9 +78,9 @@ import java.util.Locale;
  * Remove or comment out the @Disabled line to add this OpMode to the Driver Station OpMode list
  */
 
-@Autonomous(name="Blue Auto", group="Robot")
+@Autonomous(name="Blue Auto WAIT", group="Robot")
 //@Disabled
-public class BlueAuto extends LinearOpMode {
+public class BlueAutoWAIT extends LinearOpMode {
     GoBildaPinpointDriver odo;
     private ElapsedTime runtime = new ElapsedTime();
     private DcMotorEx fL = null;
@@ -180,9 +180,7 @@ public class BlueAuto extends LinearOpMode {
         runtime.reset();
 
         while (opModeIsActive() && runtime.seconds()<29){
-            if (!firstShoot){
-                fwOn();
-            }
+            fwOn();
             if (needPattern) {
                 checkPattern();
                 sorting1.setPosition(suzani[servoIndex]);
@@ -197,27 +195,18 @@ public class BlueAuto extends LinearOpMode {
                     firstMoves = true;
                 }
                 if (!firstShoot) {
-                    sorting2.setPosition(wackDown);
-                    sorting1.setPosition(suzano[servoIndex]);
-                    lastPos = suzano[servoIndex];
-                    move(blueShootX, blueShootY, 0);
-                    rotateToHeading(blueShootYaw);
-                    sleep(6000);
-                    outtake();
-                    moveAndRotate(blueLeaveX, blueLeaveY, blueLeaveYaw);
-//                    moveAndRotate(blueIntake1X, blueIntakeY, blueIntakeYaw);
-                    off();
-                    fwOff();
-                    firstShoot = true;
+                    if (runtime.seconds()>15){
+                        sorting2.setPosition(wackDown);
+                        sorting1.setPosition(suzano[servoIndex]);
+                        lastPos = suzano[servoIndex];
+                        move(blueShootX, blueShootY, 0);
+                        rotateToHeading(blueShootYaw);
+                        outtake();
+                        moveAndRotate(blueLeaveX, blueLeaveY, blueLeaveYaw);
+                        off();
+                        firstShoot = true;
+                    }
                 }
-//                } else if (!firstIntake){
-//                    intakeMacro();
-//                    intakeDone = true;
-//                    moveAndRotate(blueShootX, blueShootY, blueShootYaw2);
-//                    outtake();
-//                    moveAndRotate(blueLeaveX, blueLeaveY, blueLeaveYaw);
-//                    firstIntake = true;
-//                }
                 off();
             }
 
@@ -498,9 +487,9 @@ public class BlueAuto extends LinearOpMode {
             sorting1.setPosition(servoPos);
             if (opModeIsActive() && runtime.seconds()<29) {
                 if (Math.abs(lastPos - servoPos) > 0.4) {
-                    sleep(3000);
+                    sleep(2000);
                 } else {
-                    sleep(2500);
+                    sleep(1200);
                 }
                 if (opModeIsActive() && runtime.seconds()<29) {
                     sorting2.setPosition(wackUp);
